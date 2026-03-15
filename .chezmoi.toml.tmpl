@@ -1,0 +1,9 @@
+encryption = "age"
+
+[age]
+  identity = "~/.config/chezmoi/key.txt"
+  recipient = "age1v20cldj53evuwcufrcql25peam7rkcyr6zdhwmjrz8xlnx3gsdwq8rpjrz"
+
+[data]
+  profile = "{{ promptStringOnce . "profile" "Profile (desktop/server)" }}"
+  distro = "{{ promptStringOnce . "distro" "Distro (arch/debian/macos)" }}"
