@@ -1,0 +1,95 @@
+{{ if eq .distro "arch" -}}
+source /usr/share/cachyos-fish-config/cachyos-config.fish
+{{ end -}}
+
+# I use vim btw
+fish_vi_key_bindings
+
+function fish_user_key_bindings
+    for mode in insert default visual
+        bind -M $mode \cf forward-char
+    end
+end
+fish_user_key_bindings
+
+# Alias
+abbr --add --global k kubectl
+abbr --add --global pip pip3
+abbr --add --global clear 'clear -x'
+abbr --add --global vim nvim
+abbr --add --global cd z
+abbr --add --global cat bat
+
+{{ if eq .distro "macos" -}}
+abbr --add --global timeout gtimeout
+abbr --add --global co colima
+abbr --add --global nerd 'colima nerdctl'
+abbr --add --global key 'ssh-add -k ~/.ssh/id_ed25519'
+{{ end -}}
+
+{{ if eq .distro "arch" -}}
+alias spotify='flatpak run com.spotify.Client'
+{{ end -}}
+
+# Git abbreviations
+abbr -a gco 'git commit'
+abbr -a ga 'git add'
+abbr -a gaa 'git add .'
+abbr -a gs 'git status'
+abbr -a gd 'git diff'
+abbr -a gds 'git diff --staged'
+abbr -a gp 'git push'
+abbr -a gpl 'git pull'
+abbr -a gl 'git log --oneline'
+abbr -a gb 'git branch'
+abbr -a gch 'git checkout'
+abbr -a gcb 'git checkout -b'
+abbr -a gst 'git stash'
+abbr -a gsp 'git stash pop'
+abbr -a grb 'git rebase'
+
+# General dev
+abbr -a py python3
+
+# Environment variables
+set -gx GPG_TTY $(tty)
+set -gx MAX_MCP_OUTPUT_TOKENS 3000
+{{ if eq .distro "macos" -}}
+set -gx PKG_CONFIG_PATH /opt/homebrew/opt/mysql-client/lib/pkgconfig $PKG_CONFIG_PATH
+{{ end -}}
+
+# Source work-specific config if present (local only, not in dotfiles repo)
+if test -f ~/.config/work.fish
+    source ~/.config/work.fish
+end
+
+{{ if eq .distro "arch" -}}
+if status is-interactive
+    keychain --eval --quiet id_ed25519 | source
+end
+{{ end -}}
+
+# Start zellij if in an interactive shell
+if status is-interactive
+    # Disable for now because I'm a noob and don't know how to use zellij
+    #eval (zellij setup --generate-auto-start fish | string collect)
+end
+
+# Atuin
+if status is-interactive
+    atuin init fish | source
+    # bind to ctrl-r in normal and insert mode, add any other bindings you want here too
+    bind \cr _atuin_search
+    bind -M insert \cr _atuin_search
+end
+
+# Initialize shell integrations
+starship init fish | source
+zoxide init fish | source
+{{ if ne .role "container" -}}
+set -Ux CARAPACE_BRIDGES 'zsh,fish,bash,inshellisense'
+carapace _carapace | source
+{{ end -}}
+
+# Set up fzf key bindings
+fzf --fish | source

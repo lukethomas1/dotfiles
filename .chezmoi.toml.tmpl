@@ -1,3 +1,23 @@
+{{- $role := "" -}}
+{{- $distro := "" -}}
+
+{{- /* Auto-detect from environment variable (used by sandbox containers) */ -}}
+{{- if env "CHEZMOI_ROLE" -}}
+{{-   $role = env "CHEZMOI_ROLE" -}}
+{{- /* Auto-detect macOS */ -}}
+{{- else if eq .chezmoi.os "darwin" -}}
+{{-   $role = "macos" -}}
+{{-   $distro = "macos" -}}
+{{- /* Prompt on Linux (could be Arch desktop or Debian container) */ -}}
+{{- else -}}
+{{-   $role = promptStringOnce . "role" "Role (arch/container)" -}}
+{{-   $distro = promptStringOnce . "distro" "Distro (arch/debian)" -}}
+{{- end -}}
+
+{{- if eq $role "container" -}}
+{{-   $distro = "debian" -}}
+{{- end -}}
+
 encryption = "age"
 
 [age]
@@ -5,5 +25,5 @@ encryption = "age"
   recipient = "age1v20cldj53evuwcufrcql25peam7rkcyr6zdhwmjrz8xlnx3gsdwq8rpjrz"
 
 [data]
-  profile = "{{ promptStringOnce . "profile" "Profile (desktop/server)" }}"
-  distro = "{{ promptStringOnce . "distro" "Distro (arch/debian/macos)" }}"
+  role = {{ $role | quote }}
+  distro = {{ $distro | quote }}

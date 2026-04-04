@@ -1,0 +1,16 @@
+[user]
+	name = lukethomas1
+	email = lukethethomas@gmail.com
+	signingkey = 1760C809D5A959A3
+[commit]
+	gpgsign = true
+{{- if eq .role "macos" }}
+[credential "https://github.com"]
+	helper =
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/opt/homebrew/bin/gh auth git-credential
+{{- end }}
+[includeIf "gitdir:~/Gitlab/"]
+	path = ~/.gitconfig-work

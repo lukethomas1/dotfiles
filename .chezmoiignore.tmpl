@@ -1,4 +1,26 @@
+# Non-dotfile repo contents
 README.md
 bootstrap.sh
 pkg
 pkg/**
+
+# Container: full dev experience but no secrets or SSH
+{{ if eq .role "container" }}
+.ssh/**
+.config/secrets.env
+{{ end }}
+
+# macOS: skip Linux-only stuff + SSH + secrets (managed outside this repo)
+# The Arch secrets.env contains personal secrets for the home desktop,
+# not applicable on work macOS. Work secrets live in ~/.config/secrets.env locally.
+{{ if eq .chezmoi.os "darwin" }}
+.config/hypr/**
+.bashrc
+.ssh/**
+.config/secrets.env
+{{ end }}
+
+# Arch: skip macOS-only stuff
+{{ if eq .role "arch" }}
+.config/aerospace/**
+{{ end }}

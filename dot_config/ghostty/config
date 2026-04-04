@@ -1,0 +1,15 @@
+shell-integration = fish
+
+#theme = Dracula
+theme = catppuccin-mocha
+font-family = JetBrains Mono
+font-size = 14
+
+background-opacity = 0.9
+background-blur = true
+background-blur-radius = 20
+
+scrollback-limit = 99_999_999
+clipboard-read = allow
+clipboard-paste-protection = false
+keybind = shift+enter=text:\x1b\r
