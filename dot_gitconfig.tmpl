@@ -1,9 +1,15 @@
 [user]
 	name = lukethomas1
 	email = lukethethomas@gmail.com
+{{- if ne .role "container" }}
 	signingkey = 1760C809D5A959A3
+{{- end }}
 [commit]
+{{- if eq .role "container" }}
+	gpgsign = false
+{{- else }}
 	gpgsign = true
+{{- end }}
 {{- if eq .role "macos" }}
 [credential "https://github.com"]
 	helper =
