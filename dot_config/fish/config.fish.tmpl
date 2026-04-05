@@ -52,7 +52,7 @@ abbr -a grb 'git rebase'
 abbr -a py python3
 
 # Environment variables
-set -gx GPG_TTY $(tty)
+set -gx GPG_TTY (tty)
 set -gx MAX_MCP_OUTPUT_TOKENS 3000
 {{ if eq .distro "macos" -}}
 set -gx PKG_CONFIG_PATH /opt/homebrew/opt/mysql-client/lib/pkgconfig $PKG_CONFIG_PATH
