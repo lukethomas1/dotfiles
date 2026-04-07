@@ -1,0 +1,4 @@
+[env_var.SANDBOX_ID]
+symbol = "box:"
+style = "bold yellow"
+format = "[$symbol$env_value]($style) "
