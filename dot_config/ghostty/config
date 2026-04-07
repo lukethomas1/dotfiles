@@ -13,3 +13,5 @@ scrollback-limit = 99_999_999
 clipboard-read = allow
 clipboard-paste-protection = false
 keybind = shift+enter=text:\x1b\r
+keybind = ctrl+h=goto_split:left
+keybind = ctrl+l=goto_split:right
