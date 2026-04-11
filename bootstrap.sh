@@ -77,6 +77,11 @@ fi
 if [ "${CHEZMOI_ROLE}" = "macos" ]; then
   echo "Installing Homebrew packages..."
   brew bundle --file="$(chezmoi source-path)/pkg/macos/Brewfile"
+  # npm globals (not available via brew)
+  if command -v npm >/dev/null; then
+    echo "Installing npm globals..."
+    npm install -g @devcontainers/cli 2>/dev/null || sudo npm install -g @devcontainers/cli
+  fi
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing pacman packages..."
   sudo pacman -S --needed - < "$(chezmoi source-path)/pkg/arch/pacman-arch.txt"
