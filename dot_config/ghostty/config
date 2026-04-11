@@ -1,7 +1,7 @@
 shell-integration = fish
 
 #theme = Dracula
-theme = catppuccin-mocha
+theme = Catppuccin Mocha
 font-family = JetBrains Mono
 font-size = 14
 
