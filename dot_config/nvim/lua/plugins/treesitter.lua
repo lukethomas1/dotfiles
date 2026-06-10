@@ -9,6 +9,7 @@ return {
       "bash",
       "c",
       "cpp",
+      "cue",
       "diff",
       "go",
       "gomod",
