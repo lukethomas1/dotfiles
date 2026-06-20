@@ -8,10 +8,10 @@
 {{- else if eq .chezmoi.os "darwin" -}}
 {{-   $role = "macos" -}}
 {{-   $distro = "macos" -}}
-{{- /* Prompt on Linux (could be Arch desktop or Debian container) */ -}}
+{{- /* Prompt on Linux */ -}}
 {{- else -}}
-{{-   $role = promptStringOnce . "role" "Role (arch/container)" -}}
-{{-   $distro = promptStringOnce . "distro" "Distro (arch/debian)" -}}
+{{-   $role = promptStringOnce . "role" "Role (arch/container/fedora)" -}}
+{{-   $distro = promptStringOnce . "distro" "Distro (arch/debian/fedora)" -}}
 {{- end -}}
 
 {{- if eq $role "container" -}}

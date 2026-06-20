@@ -26,6 +26,25 @@ case "$OS" in
       # Arch / CachyOS
       sudo pacman -S --needed --noconfirm chezmoi age
       export CHEZMOI_ROLE="arch"
+    elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
+      # Fedora COSMIC Atomic (or other rpm-ostree immutable desktops)
+      # Install chezmoi as standalone binary
+      if ! command -v chezmoi >/dev/null; then
+        echo "Installing chezmoi..."
+        sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
+      fi
+      # Install age via brew (Linuxbrew) or standalone
+      if ! command -v age >/dev/null; then
+        if command -v brew >/dev/null; then
+          brew install age
+        else
+          echo "Installing Homebrew (needed for CLI tools on immutable distros)..."
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          brew install age
+        fi
+      fi
+      export CHEZMOI_ROLE="fedora"
     elif [ -f /etc/debian_version ]; then
       # Debian container — chezmoi should already be installed via Dockerfile
       if ! command -v chezmoi >/dev/null; then
@@ -84,14 +103,29 @@ if [ "${CHEZMOI_ROLE}" = "macos" ]; then
   fi
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing pacman packages..."
-  sudo pacman -S --needed - < "$(chezmoi source-path)/pkg/arch/pacman-arch.txt"
+  sudo pacman -S --needed - < "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt"
   if command -v paru >/dev/null; then
     echo "Installing AUR packages..."
-    paru -S --needed - < "$(chezmoi source-path)/pkg/arch/aur-arch.txt"
+    paru -S --needed - < "$(chezmoi source-path)/pkg/arch/aur-desktop.txt"
   else
     echo "WARN: paru not found, skipping AUR packages"
+  fi
+elif [ "${CHEZMOI_ROLE}" = "fedora" ]; then
+  echo "Installing CLI tools via Homebrew (Linuxbrew)..."
+  # Ensure brew is available
+  if ! command -v brew >/dev/null; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  fi
+  if command -v brew >/dev/null; then
+    xargs brew install < "$(chezmoi source-path)/pkg/fedora/brew.txt"
+  else
+    echo "WARN: brew not found, install CLI tools manually"
   fi
 fi
 
 echo ""
-echo "Done! Restart your shell or run: exec fish"
+if [ "${CHEZMOI_ROLE}" = "fedora" ]; then
+  echo "Done! Restart your shell or run: exec zsh"
+else
+  echo "Done! Restart your shell or run: exec fish"
+fi

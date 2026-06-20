@@ -1,0 +1,99 @@
+# Zsh config — adapted from chezmoi fish dotfiles for Fedora COSMIC Atomic
+# Managed by chezmoi. Edit the source repo, not this file directly.
+
+# =============================================================================
+# Vi Keybindings
+# =============================================================================
+bindkey -v
+bindkey -M viins '^F' forward-char
+bindkey -M vicmd '^F' forward-char
+
+# =============================================================================
+# Shell Integrations (safe-loaded — no-ops if tool is missing)
+# =============================================================================
+
+# Initialize Homebrew (Linuxbrew) on host only
+if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+    if [ ! -f /run/.containerenv ] && [ ! -f /.dockerenv ]; then
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
+fi
+
+# Add ~/.local/bin to PATH
+export PATH="$HOME/.local/bin:$PATH"
+
+# Starship prompt
+if (( $+commands[starship] )); then
+    eval "$(starship init zsh)"
+fi
+
+# Zoxide (smart cd)
+if (( $+commands[zoxide] )); then
+    eval "$(zoxide init zsh)"
+fi
+
+# Atuin (shell history)
+if (( $+commands[atuin] )); then
+    eval "$(atuin init zsh)"
+fi
+
+# Carapace (multi-tool completions)
+if (( $+commands[carapace] )); then
+    export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
+    source <(carapace _carapace zsh)
+fi
+
+# fzf keybindings
+if (( $+commands[fzf] )); then
+    source <(fzf --zsh)
+fi
+
+# =============================================================================
+# Aliases (equivalent to fish abbreviations)
+# =============================================================================
+
+alias k='kubectl'
+alias pip='pip3'
+alias clear='clear -x'
+alias vim='nvim'
+alias cd='z'
+alias cat='bat'
+alias py='python3'
+
+# Git aliases
+alias gco='git commit'
+alias ga='git add'
+alias gaa='git add .'
+alias gs='git status'
+alias gd='git diff'
+alias gds='git diff --staged'
+alias gp='git push'
+alias gpl='git pull'
+alias gl='git log --oneline'
+alias gb='git branch'
+alias gch='git checkout'
+alias gcb='git checkout -b'
+alias gst='git stash'
+alias gsp='git stash pop'
+alias grb='git rebase'
+
+{{ if eq .distro "macos" -}}
+alias timeout='gtimeout'
+alias co='colima'
+alias nerd='colima nerdctl'
+alias key='ssh-add -k ~/.ssh/id_ed25519'
+{{ end -}}
+
+# =============================================================================
+# Environment Variables
+# =============================================================================
+
+export GPG_TTY=$(tty)
+export MAX_MCP_OUTPUT_TOKENS=3000
+
+{{ if eq .distro "macos" -}}
+export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig:$PKG_CONFIG_PATH"
+{{ end -}}
+
+# Source work-specific config if present (local only, not in dotfiles repo)
+[[ -f ~/.config/work.zsh ]] && source ~/.config/work.zsh

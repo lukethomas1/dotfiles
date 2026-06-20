@@ -1,5 +1,6 @@
 # Non-dotfile repo contents
 README.md
+NEW-MAC-SETUP.md
 bootstrap.sh
 pkg
 pkg/**
@@ -10,16 +11,16 @@ pkg/**
 .config/secrets.env
 {{ end }}
 
-# macOS: skip Linux-only stuff + SSH + secrets (managed outside this repo)
-# The Arch secrets.env contains personal secrets for the home desktop,
-# not applicable on work macOS. Work secrets live in ~/.config/secrets.env locally.
+# Shared ignores for non-container roles
 {{ if ne .role "container" }}
 .config/nvim/lua/plugins/disabled.lua
 {{ end }}
 
+# macOS: skip Linux-only stuff + SSH + secrets
 {{ if eq .chezmoi.os "darwin" }}
 .config/hypr/**
 .bashrc
+.zshrc
 .ssh/**
 .config/secrets.env
 {{ end }}
@@ -27,4 +28,13 @@ pkg/**
 # Arch: skip macOS-only stuff
 {{ if eq .role "arch" }}
 .config/aerospace/**
+.zshrc
+{{ end }}
+
+# Fedora COSMIC Atomic: skip macOS-only + Arch-only stuff, use zsh instead of fish
+{{ if eq .role "fedora" }}
+.config/aerospace/**
+.config/hypr/**
+.config/fish/**
+.bashrc
 {{ end }}
