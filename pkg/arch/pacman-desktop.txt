@@ -19,7 +19,6 @@ bluez-utils
 btop
 btrfs-assistant
 btrfs-progs
-cachyos-fish-config
 cachyos-gaming-applications
 cachyos-gaming-meta
 cachyos-grub-theme

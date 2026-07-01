@@ -16,11 +16,10 @@ pkg/**
 .config/nvim/lua/plugins/disabled.lua
 {{ end }}
 
-# macOS: skip Linux-only stuff + SSH + secrets
+# macOS: skip Linux-only stuff + SSH + secrets (zsh applies on all roles now)
 {{ if eq .chezmoi.os "darwin" }}
 .config/hypr/**
 .bashrc
-.zshrc
 .ssh/**
 .config/secrets.env
 {{ end }}
@@ -28,13 +27,11 @@ pkg/**
 # Arch: skip macOS-only stuff
 {{ if eq .role "arch" }}
 .config/aerospace/**
-.zshrc
 {{ end }}
 
-# Fedora COSMIC Atomic: skip macOS-only + Arch-only stuff, use zsh instead of fish
+# Fedora COSMIC Atomic: skip macOS-only + Arch-only desktop configs
 {{ if eq .role "fedora" }}
 .config/aerospace/**
 .config/hypr/**
-.config/fish/**
 .bashrc
 {{ end }}

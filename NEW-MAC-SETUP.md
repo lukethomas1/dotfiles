@@ -20,7 +20,7 @@ Type your macOS login password when prompted (it's invisible — that's normal).
 
 After this you're ready to bootstrap dotfiles — the rest of this doc.
 
-## 1. Chezmoi dotfiles (fish, ghostty, aerospace, nvim, etc.)
+## 1. Chezmoi dotfiles (zsh, ghostty, aerospace, nvim, etc.)
 
 Place your age key first:
 ```bash
@@ -39,17 +39,14 @@ Expect 3 prompts:
 2. Type sudo password (may ask twice)
 3. Click Install on Xcode CLT popup if it appears
 
-Then wait for `brew bundle` (longest phase — installs aerospace, ghostty, fish, nvim, etc.)
+Then wait for `brew bundle` (longest phase — installs aerospace, ghostty, nvim, etc.)
 
 ## 2. Post-bootstrap manual steps
 
 - **Aerospace accessibility**: System Settings → Privacy & Security → Accessibility → enable AeroSpace
 - **Ghostty Gatekeeper**: first launch → System Settings → Privacy & Security → Open Anyway
-- **Switch to fish**:
-  ```bash
-  echo /opt/homebrew/bin/fish | sudo tee -a /etc/shells
-  chsh -s /opt/homebrew/bin/fish
-  ```
+- **Default shell**: bootstrap runs `chsh -s /bin/zsh` automatically. To do it
+  manually: `chsh -s /bin/zsh`
 
 ## 3. Clone the Nalej sandbox repo
 

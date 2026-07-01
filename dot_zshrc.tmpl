@@ -1,99 +1,140 @@
-# Zsh config — adapted from chezmoi fish dotfiles for Fedora COSMIC Atomic
-# Managed by chezmoi. Edit the source repo, not this file directly.
+#
+# ~/.zshrc — primary interactive shell config (managed by chezmoi).
+#
 
-# =============================================================================
-# Vi Keybindings
-# =============================================================================
+# ---------------------------------------------------------------------------
+# History (atuin takes over interactive search below, but keep a real histfile)
+# ---------------------------------------------------------------------------
+HISTFILE="${HOME}/.zsh_history"
+HISTSIZE=100000
+SAVEHIST=100000
+setopt SHARE_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE INC_APPEND_HISTORY
+
+# ---------------------------------------------------------------------------
+# Vi key bindings (fish: fish_vi_key_bindings)
+# ---------------------------------------------------------------------------
 bindkey -v
+# fish bound ctrl-f to forward-char in insert/default/visual. In zsh,
+# forward-char is registered as an autosuggestion "accept" widget, so this
+# doubles as "accept suggestion" — matching the fish muscle memory.
 bindkey -M viins '^F' forward-char
 bindkey -M vicmd '^F' forward-char
 
-# =============================================================================
-# Shell Integrations (safe-loaded — no-ops if tool is missing)
-# =============================================================================
+# ---------------------------------------------------------------------------
+# PATH (fish: fish_add_path $HOME/.local/bin)
+# ---------------------------------------------------------------------------
+typeset -U path                      # dedupe PATH entries
+path=("$HOME/.local/bin" $path)
+export PATH
 
-# Initialize Homebrew (Linuxbrew) on host only
-if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
-    if [ ! -f /run/.containerenv ] && [ ! -f /.dockerenv ]; then
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    fi
+# ---------------------------------------------------------------------------
+# Homebrew / Linuxbrew — host only (no-op in containers or where brew absent).
+# Needed on Fedora COSMIC Atomic / other immutable distros where CLI tools
+# live under Linuxbrew. On macOS /opt/homebrew is already on PATH via the
+# system, and this block is a no-op (path doesn't exist).
+# ---------------------------------------------------------------------------
+if [[ -x /home/linuxbrew/.linuxbrew/bin/brew && ! -f /run/.containerenv && ! -f /.dockerenv ]]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 fi
 
-# Add ~/.local/bin to PATH
-export PATH="$HOME/.local/bin:$PATH"
-
-# Starship prompt
-if (( $+commands[starship] )); then
-    eval "$(starship init zsh)"
+# ---------------------------------------------------------------------------
+# Plugins via antidote (self-cloning; see ~/.zsh_plugins.txt)
+# ---------------------------------------------------------------------------
+ANTIDOTE_DIR="${HOME}/.antidote"
+if [[ ! -d "$ANTIDOTE_DIR" ]]; then
+  git clone --depth=1 https://github.com/mattmc3/antidote "$ANTIDOTE_DIR" 2>/dev/null || true
+fi
+if [[ -f "$ANTIDOTE_DIR/antidote.zsh" ]]; then
+  source "$ANTIDOTE_DIR/antidote.zsh"
+  antidote load
 fi
 
-# Zoxide (smart cd)
-if (( $+commands[zoxide] )); then
-    eval "$(zoxide init zsh)"
-fi
+# Completion system (after antidote so zsh-completions' fpath is registered,
+# and before carapace / the platform CLI completer which call compdef).
+autoload -Uz compinit && compinit -d "${HOME}/.zcompdump"
 
-# Atuin (shell history)
-if (( $+commands[atuin] )); then
-    eval "$(atuin init zsh)"
-fi
-
-# Carapace (multi-tool completions)
-if (( $+commands[carapace] )); then
-    export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'
-    source <(carapace _carapace zsh)
-fi
-
-# fzf keybindings
-if (( $+commands[fzf] )); then
-    source <(fzf --zsh)
-fi
-
-# =============================================================================
-# Aliases (equivalent to fish abbreviations)
-# =============================================================================
-
-alias k='kubectl'
-alias pip='pip3'
-alias clear='clear -x'
-alias vim='nvim'
-alias cd='z'
-alias cat='bat'
-alias py='python3'
-
-# Git aliases
-alias gco='git commit'
-alias ga='git add'
-alias gaa='git add .'
-alias gs='git status'
-alias gd='git diff'
-alias gds='git diff --staged'
-alias gp='git push'
-alias gpl='git pull'
-alias gl='git log --oneline'
-alias gb='git branch'
-alias gch='git checkout'
-alias gcb='git checkout -b'
-alias gst='git stash'
-alias gsp='git stash pop'
-alias grb='git rebase'
-
+# ---------------------------------------------------------------------------
+# Abbreviations (fish: abbr --add ...). Defined as *session* abbreviations
+# (-S) so they're recreated each shell like fish's config-driven abbrs and
+# never written to zsh-abbr's persistent store. -q silences "already set".
+# ---------------------------------------------------------------------------
+if (( $+functions[abbr] )); then
+  abbr -S -q k='kubectl'
+  abbr -S -q pip='pip3'
+  abbr -S -q clear='clear -x'
+  abbr -S -q vim='nvim'
+  abbr -S -q cd='z'
+  abbr -S -q cat='bat'
 {{ if eq .distro "macos" -}}
-alias timeout='gtimeout'
-alias co='colima'
-alias nerd='colima nerdctl'
-alias key='ssh-add -k ~/.ssh/id_ed25519'
+  abbr -S -q timeout='gtimeout'
+  abbr -S -q co='colima'
+  abbr -S -q nerd='colima nerdctl'
+  abbr -S -q key='ssh-add -k ~/.ssh/id_ed25519'
 {{ end -}}
 
-# =============================================================================
-# Environment Variables
-# =============================================================================
+  # Git abbreviations
+  abbr -S -q gco='git commit'
+  abbr -S -q ga='git add'
+  abbr -S -q gaa='git add .'
+  abbr -S -q gs='git status'
+  abbr -S -q gd='git diff'
+  abbr -S -q gds='git diff --staged'
+  abbr -S -q gp='git push'
+  abbr -S -q gpl='git pull'
+  abbr -S -q gl='git log --oneline'
+  abbr -S -q gb='git branch'
+  abbr -S -q gch='git checkout'
+  abbr -S -q gcb='git checkout -b'
+  abbr -S -q gst='git stash'
+  abbr -S -q gsp='git stash pop'
+  abbr -S -q grb='git rebase'
 
+  # General dev
+  abbr -S -q py='python3'
+fi
+
+{{ if eq .distro "arch" -}}
+alias spotify='flatpak run com.spotify.Client'
+{{ end -}}
+
+# ---------------------------------------------------------------------------
+# Environment variables
+# ---------------------------------------------------------------------------
 export GPG_TTY=$(tty)
 export MAX_MCP_OUTPUT_TOKENS=3000
-
 {{ if eq .distro "macos" -}}
-export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig:$PKG_CONFIG_PATH"
+export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig:${PKG_CONFIG_PATH}"
 {{ end -}}
 
 # Source work-specific config if present (local only, not in dotfiles repo)
 [[ -f ~/.config/work.zsh ]] && source ~/.config/work.zsh
+
+{{ if eq .distro "arch" -}}
+if [[ -o interactive ]]; then
+  eval "$(keychain --eval --quiet id_ed25519)"
+fi
+{{ end -}}
+
+# ---------------------------------------------------------------------------
+# Shell integrations
+# ---------------------------------------------------------------------------
+command -v atuin    >/dev/null && eval "$(atuin init zsh)"       # binds ctrl-r + up
+command -v starship >/dev/null && eval "$(starship init zsh)"
+command -v zoxide   >/dev/null && eval "$(zoxide init zsh)"
+{{ if ne .role "container" -}}
+export CARAPACE_BRIDGES='zsh,bash,inshellisense'
+command -v carapace >/dev/null && source <(carapace _carapace zsh)
+{{ end -}}
+command -v fzf      >/dev/null && source <(fzf --zsh)
+
+# ---------------------------------------------------------------------------
+# ls → eza wrapper (fish: ~/.config/fish/functions/ls.fish)
+# ---------------------------------------------------------------------------
+ls() {
+  if [[ " $* " == *" -h "* || " $* " == *" --help "* ]]; then
+    eza "$@"
+  else
+    eza --long --all --header --group-directories-first \
+        --time-style=relative --git --icons --classify "$@"
+  fi
+}

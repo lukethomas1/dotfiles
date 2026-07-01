@@ -1,0 +1,16 @@
+# antidote plugin bundle — loaded by ~/.zshrc via `antidote load`.
+# These recreate the fish quality-of-life features on zsh.
+
+# fish-style abbreviations (the `abbr` command). zsh-abbr needs zsh-job-queue.
+olets/zsh-job-queue
+olets/zsh-abbr
+
+# fish-style autosuggestions (grey inline suggestion from history)
+zsh-users/zsh-autosuggestions
+
+# extra completion definitions — fpath only, activated by compinit in .zshrc
+zsh-users/zsh-completions kind:fpath path:src
+
+# fish-style command-line syntax highlighting. MUST be sourced last so it can
+# wrap every other widget that the plugins above define.
+zdharma-continuum/fast-syntax-highlighting

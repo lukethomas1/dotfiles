@@ -20,6 +20,13 @@ case "$OS" in
     }
     brew install chezmoi age
     export CHEZMOI_ROLE="macos"
+    # Make zsh the default login shell. /bin/zsh ships with macOS and is
+    # always in /etc/shells. chsh prompts for a password; skip if zsh is
+    # already the login shell.
+    if [ "$(dscl . -read "/Users/${USER}" UserShell 2>/dev/null | awk '{print $2}')" != "/bin/zsh" ]; then
+      echo "Setting default shell to /bin/zsh (enter your password if prompted)..."
+      chsh -s /bin/zsh || echo "WARN: chsh failed — run 'chsh -s /bin/zsh' manually."
+    fi
     ;;
   Linux)
     if [ -f /etc/arch-release ]; then
@@ -51,9 +58,9 @@ case "$OS" in
         echo "ERROR: chezmoi not found. Install it first (should be in Dockerfile)."
         exit 1
       fi
-      # Install fish + starship for full dev experience
-      if ! command -v fish >/dev/null; then
-        sudo apt-get update && sudo apt-get install -y fish
+      # Install zsh + starship for full dev experience
+      if ! command -v zsh >/dev/null; then
+        sudo apt-get update && sudo apt-get install -y zsh
       fi
       if ! command -v starship >/dev/null; then
         curl -sS https://starship.rs/install.sh | sh -s -- -y
@@ -124,8 +131,5 @@ elif [ "${CHEZMOI_ROLE}" = "fedora" ]; then
 fi
 
 echo ""
-if [ "${CHEZMOI_ROLE}" = "fedora" ]; then
-  echo "Done! Restart your shell or run: exec zsh"
-else
-  echo "Done! Restart your shell or run: exec fish"
-fi
+echo "Done! Restart your shell or run: exec zsh"
+echo "(First zsh launch clones antidote + plugins — give it a few seconds.)"
