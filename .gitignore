@@ -1,2 +1,4 @@
 key.txt
 .env
+# Backup snapshot of Fedora COSMIC Atomic setup (not managed by chezmoi)
+private_dot_local_share_fedora_atomic_backup/
