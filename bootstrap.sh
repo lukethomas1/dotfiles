@@ -31,7 +31,11 @@ case "$OS" in
   Linux)
     if [ -f /etc/arch-release ]; then
       # Arch / CachyOS
-      shelly install --upgrade chezmoi age
+      # Arch-based distributions must be upgraded as a complete transaction.
+      # Do this once, before installing bootstrap and host packages, so later
+      # installs do not trigger another full upgrade or reinstall every target.
+      shelly upgrade --no-confirm
+      shelly install --no-confirm chezmoi age
       export CHEZMOI_ROLE="arch"
     elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
       # Fedora COSMIC Atomic (or other rpm-ostree immutable desktops)
@@ -111,7 +115,7 @@ if [ "${CHEZMOI_ROLE}" = "macos" ]; then
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing Arch host packages..."
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
-    "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt" | xargs shelly install --upgrade
+    "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt" | xargs shelly install --no-confirm
   echo "Installing Arch host AUR packages..."
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
     "$(chezmoi source-path)/pkg/arch/aur-desktop.txt" | xargs shelly aur install
