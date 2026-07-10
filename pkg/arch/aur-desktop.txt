@@ -2,3 +2,6 @@
 # through Shelly's AUR support during bootstrap.
 carapace-bin
 1password
+# Terminal multiplexer for coordinating coding agents. The package installs
+# the vendor-provided binary and exposes it as `herdr`.
+herdr-bin

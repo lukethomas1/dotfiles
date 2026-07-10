@@ -2,6 +2,7 @@ binds {
 
     // ────────────── Keybindings ──────────────
     // https://github.com/YaLTeR/niri/wiki/Configuration:-Key-Bindings
+    // `Mod` means Super. Caps Lock is mapped to Super in cfg/input.kdl.
 
     // ─── noctalia-shell keybinds ───
     // https://docs.noctalia.dev/getting-started/keybinds/

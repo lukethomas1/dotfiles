@@ -23,6 +23,7 @@ assets/**
 # macOS: skip Linux-only stuff + SSH + secrets (zsh applies on all roles now)
 {{ if eq .chezmoi.os "darwin" }}
 .config/hypr/**
+.config/niri/**
 .bashrc
 .ssh/**
 .config/secrets.env
@@ -38,5 +39,6 @@ assets/**
 {{ if eq .role "fedora" }}
 .config/aerospace/**
 .config/hypr/**
+.config/niri/**
 .bashrc
 {{ end }}

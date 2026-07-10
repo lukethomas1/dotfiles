@@ -1,0 +1,21 @@
+// ────────────── Output Configuration ──────────────
+// Use `niri msg outputs` to refresh names, modes, and layout after hardware changes.
+
+output "DP-3" {
+    mode "3840x2160@143.998"
+    scale 1
+    position x=0 y=1440
+}
+
+output "DP-2" {
+    mode "2560x1440@143.973"
+    scale 1
+    transform "270"
+    position x=3840 y=1000
+}
+
+output "HDMI-A-1" {
+    mode "2560x1440@144.000"
+    scale 1
+    position x=1280 y=0
+}
