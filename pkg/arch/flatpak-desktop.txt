@@ -1,0 +1,5 @@
+# Desktop applications installed for the current user from Flathub. Keep
+# development tools and project dependencies in MicroVM development environments.
+com.discordapp.Discord
+com.spotify.Client
+md.obsidian.Obsidian

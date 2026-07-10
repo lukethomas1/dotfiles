@@ -9,10 +9,12 @@ eza
 fastfetch
 fd
 flatpak
+firefox
 fzf
 github-cli
 git
 gnupg
+ghostty
 keychain
 lazygit
 neovim

@@ -1,7 +1,9 @@
 [user]
 	name = lukethomas1
 	email = lukethethomas@gmail.com
-{{- if ne .role "container" }}
+{{- if eq .role "arch" }}
+	signingkey = ~/.ssh/id_ed25519.pub
+{{- else if ne .role "container" }}
 	signingkey = FEF953F3FC13A7EB
 {{- end }}
 [commit]
@@ -9,6 +11,10 @@
 	gpgsign = false
 {{- else }}
 	gpgsign = true
+{{- end }}
+{{- if eq .role "arch" }}
+[gpg]
+	format = ssh
 {{- end }}
 {{- if eq .role "macos" }}
 [credential "https://github.com"]

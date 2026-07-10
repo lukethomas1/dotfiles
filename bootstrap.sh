@@ -117,8 +117,35 @@ elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
     "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt" | xargs shelly install --no-confirm
   echo "Installing Arch host AUR packages..."
+  # The official 1Password AUR package verifies vendor-signed downloads. Import
+  # its documented signing key before Shelly invokes makepkg.
+  if grep -qx '1password' "$(chezmoi source-path)/pkg/arch/aur-desktop.txt"; then
+    curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | \
+      gpg --batch --import
+  fi
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
     "$(chezmoi source-path)/pkg/arch/aur-desktop.txt" | xargs shelly aur install
+
+  echo "Installing desktop applications from Flathub..."
+  flatpak remote-add --if-not-exists --user flathub \
+    https://dl.flathub.org/repo/flathub.flatpakrepo
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+    "$(chezmoi source-path)/pkg/arch/flatpak-desktop.txt" | \
+    xargs -r flatpak install --user --noninteractive flathub
+
+  echo "Configuring Firefox 1Password extension..."
+  sudo install -Dm644 \
+    "$(chezmoi source-path)/assets/firefox/policies.json" \
+    /etc/firefox/policies/policies.json
+
+  # Set the login shell after zsh has been installed. This requires the user's
+  # password and is harmless on subsequent bootstrap runs.
+  zsh_path="$(command -v zsh)"
+  current_shell="$(getent passwd "${USER}" | cut -d: -f7)"
+  if [ "${current_shell}" != "${zsh_path}" ]; then
+    echo "Setting default shell to ${zsh_path} (enter your password if prompted)..."
+    chsh -s "${zsh_path}" || echo "WARN: chsh failed — run 'chsh -s ${zsh_path}' manually."
+  fi
 elif [ "${CHEZMOI_ROLE}" = "fedora" ]; then
   echo "Installing CLI tools via Homebrew (Linuxbrew)..."
   # Ensure brew is available

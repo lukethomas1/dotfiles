@@ -1,3 +1,4 @@
 # Host-only tools not packaged by the enabled CachyOS repositories. Installed
 # through Shelly's AUR support during bootstrap.
 carapace-bin
+1password
