@@ -4,6 +4,15 @@
 {{- /* Auto-detect from environment variable (used by sandbox containers) */ -}}
 {{- if env "CHEZMOI_ROLE" -}}
 {{-   $role = env "CHEZMOI_ROLE" -}}
+{{-   if eq $role "arch" -}}
+{{-     $distro = "arch" -}}
+{{-   else if eq $role "fedora" -}}
+{{-     $distro = "fedora" -}}
+{{-   else if eq $role "macos" -}}
+{{-     $distro = "macos" -}}
+{{-   else if eq $role "container" -}}
+{{-     $distro = "debian" -}}
+{{-   end -}}
 {{- /* Auto-detect macOS */ -}}
 {{- else if eq .chezmoi.os "darwin" -}}
 {{-   $role = "macos" -}}

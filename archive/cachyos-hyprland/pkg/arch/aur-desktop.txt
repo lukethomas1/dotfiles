@@ -1,0 +1,6 @@
+awakened-poe-trade-bin
+elephant
+elephant-desktopapplications
+input-remapper
+nordvpn-bin
+obsidian-bin

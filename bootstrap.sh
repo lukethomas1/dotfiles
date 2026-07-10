@@ -31,7 +31,7 @@ case "$OS" in
   Linux)
     if [ -f /etc/arch-release ]; then
       # Arch / CachyOS
-      sudo pacman -S --needed --noconfirm chezmoi age
+      shelly install --upgrade chezmoi age
       export CHEZMOI_ROLE="arch"
     elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
       # Fedora COSMIC Atomic (or other rpm-ostree immutable desktops)
@@ -109,14 +109,12 @@ if [ "${CHEZMOI_ROLE}" = "macos" ]; then
     npm install -g @devcontainers/cli 2>/dev/null || sudo npm install -g @devcontainers/cli
   fi
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
-  echo "Installing pacman packages..."
-  sudo pacman -S --needed - < "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt"
-  if command -v paru >/dev/null; then
-    echo "Installing AUR packages..."
-    paru -S --needed - < "$(chezmoi source-path)/pkg/arch/aur-desktop.txt"
-  else
-    echo "WARN: paru not found, skipping AUR packages"
-  fi
+  echo "Installing Arch host packages..."
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+    "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt" | xargs shelly install --upgrade
+  echo "Installing Arch host AUR packages..."
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+    "$(chezmoi source-path)/pkg/arch/aur-desktop.txt" | xargs shelly aur install
 elif [ "${CHEZMOI_ROLE}" = "fedora" ]; then
   echo "Installing CLI tools via Homebrew (Linuxbrew)..."
   # Ensure brew is available

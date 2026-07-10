@@ -4,6 +4,8 @@ NEW-MAC-SETUP.md
 bootstrap.sh
 pkg
 pkg/**
+archive
+archive/**
 
 # Container: full dev experience but no secrets or SSH
 {{ if eq .role "container" }}
@@ -24,7 +26,8 @@ pkg/**
 .config/secrets.env
 {{ end }}
 
-# Arch: skip macOS-only stuff
+# Arch: skip macOS-only desktop configuration. The former Hyprland
+# configuration is retained under archive/ and is never deployed.
 {{ if eq .role "arch" }}
 .config/aerospace/**
 {{ end }}

@@ -94,7 +94,9 @@ if (( $+functions[abbr] )); then
 fi
 
 {{ if eq .distro "arch" -}}
-alias spotify='flatpak run com.spotify.Client'
+if command -v flatpak >/dev/null && flatpak info com.spotify.Client >/dev/null 2>&1; then
+  alias spotify='flatpak run com.spotify.Client'
+fi
 {{ end -}}
 
 # ---------------------------------------------------------------------------
