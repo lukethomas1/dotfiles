@@ -25,6 +25,7 @@ openssh
 ripgrep
 shelly
 starship
+ttf-jetbrains-mono
 uv
 wl-clipboard
 yamllint

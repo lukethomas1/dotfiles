@@ -61,10 +61,10 @@ autoload -Uz compinit && compinit -d "${HOME}/.zcompdump"
 if (( $+functions[abbr] )); then
   abbr -S -q k='kubectl'
   abbr -S -q pip='pip3'
-  abbr -S -q clear='clear -x'
-  abbr -S -q vim='nvim'
+  abbr -S --force -qq clear='clear -x'
+  abbr -S --force -qq vim='nvim'
   abbr -S -q cd='z'
-  abbr -S -q cat='bat'
+  abbr -S --force -qq cat='bat'
 {{ if eq .distro "macos" -}}
   abbr -S -q timeout='gtimeout'
   abbr -S -q co='colima'
@@ -113,7 +113,10 @@ export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig:${PKG_CONFI
 
 {{ if eq .distro "arch" -}}
 if [[ -o interactive ]]; then
-  eval "$(keychain --eval --quiet id_ed25519)"
+  # Keychain chooses output syntax from $SHELL. The graphical session can
+  # still export fish here, whose `set -x` syntax enables zsh xtrace when
+  # evaluated. Force Bourne/zsh-compatible output instead.
+  eval "$(SHELL=/usr/bin/zsh keychain --eval --quiet id_ed25519)"
 fi
 {{ end -}}
 
