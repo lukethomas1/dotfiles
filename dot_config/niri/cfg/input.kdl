@@ -4,8 +4,9 @@
 input {
     keyboard {
         xkb {
-            // Make Caps Lock an additional Super key; it no longer toggles caps.
-            options "caps:super"
+            // Caps Lock is the sole Super/`Mod` key; it no longer toggles caps.
+            // The physical Cmd/Super keys become Alt instead.
+            options "caps:super,altwin:alt_win"
         }
         // Shorter initial delay and faster repeat for Backspace and all keys.
         repeat-delay 250
