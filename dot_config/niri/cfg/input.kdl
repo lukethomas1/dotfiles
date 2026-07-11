@@ -2,11 +2,14 @@
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Input
 
 input {
+    // Niri's Mod expands to XKB Mod3. Caps Lock is the only key mapped there,
+    // keeping physical Cmd/Super and Alt available to applications.
+    mod-key "Mod3"
+
     keyboard {
         xkb {
-            // Caps Lock is the sole Super/`Mod` key; it no longer toggles caps.
-            // The physical Cmd/Super keys become Alt instead.
-            options "caps:super,altwin:alt_win"
+            // Caps Lock becomes Hyper (XKB Mod3) and no longer toggles caps.
+            options "caps:hyper"
         }
         // Shorter initial delay and faster repeat for Backspace and all keys.
         repeat-delay 250

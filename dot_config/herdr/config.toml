@@ -1,0 +1,29 @@
+onboarding = false
+
+[keys]
+# Ergonomic terminal-multiplexer prefix; press Alt+Space, then the command key.
+prefix = "alt+space"
+
+# Physical Cmd/Super keys remain Super, so these are pressed as Cmd+… .
+previous_tab = "super+h"
+next_tab = "super+l"
+close_pane = "super+w"
+new_tab = "super+t"
+split_vertical = "super+d"
+split_horizontal = "super+minus"
+
+previous_workspace = "super+k"
+next_workspace = "super+j"
+
+previous_agent = "ctrl+super+k"
+next_agent = "ctrl+super+j"
+
+[ui]
+show_agent_labels_on_pane_borders = true
+
+[ui.toast]
+delivery = "system"
+
+[theme]
+name = "catppuccin"
+auto_switch = false

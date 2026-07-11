@@ -1,0 +1,11 @@
+// Persistent global workspaces for Caps+1 through Caps+9.
+// Their name is their stable identity; Niri assigns local indices at runtime.
+workspace "1"
+workspace "2"
+workspace "3"
+workspace "4"
+workspace "5"
+workspace "6"
+workspace "7"
+workspace "8"
+workspace "9"

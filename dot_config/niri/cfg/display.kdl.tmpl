@@ -1,0 +1,25 @@
+{{- if eq .chezmoi.hostname "cachyos-megatron" }}
+// Megatron's three-monitor layout. Keep this machine-specific: other hosts
+// should let Niri choose their connected displays automatically.
+output "DP-3" {
+    mode "3840x2160@143.998"
+    scale 1
+    position x=0 y=1440
+}
+
+output "DP-2" {
+    mode "2560x1440@143.973"
+    scale 1
+    transform "270"
+    position x=3840 y=1000
+}
+
+output "HDMI-A-1" {
+    mode "2560x1440@144.000"
+    scale 1
+    // Center the 2560px upper display above the 3840px lower display.
+    position x=640 y=0
+}
+{{- else }}
+// No machine-specific display layout is configured for this host.
+{{- end }}

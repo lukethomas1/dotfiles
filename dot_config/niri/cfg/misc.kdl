@@ -2,6 +2,8 @@ prefer-no-csd
 screenshot-path null
 
 environment {
+    // Ensure apps spawned from the compositor use the configured login shell.
+    SHELL "/usr/bin/zsh"
     ELECTRON_OZONE_PLATFORM_HINT "auto"
     QT_QPA_PLATFORM "wayland"
     QT_QPA_PLATFORMTHEME "gtk3"
