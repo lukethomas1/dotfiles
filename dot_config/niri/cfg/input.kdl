@@ -27,6 +27,8 @@ input {
         // accel-speed 0.0
     }
 
-    focus-follows-mouse
+    // Keep focus under explicit keyboard or click control; moving the pointer
+    // near an off-screen column must not scroll the tiled view.
+    // focus-follows-mouse
     workspace-auto-back-and-forth
 }

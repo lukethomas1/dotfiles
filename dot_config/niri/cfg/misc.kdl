@@ -1,6 +1,14 @@
 prefer-no-csd
 screenshot-path null
 
+// The Overview remains available via Caps+O, but do not trigger it merely by
+// moving the pointer into a screen corner.
+gestures {
+    hot-corners {
+        off
+    }
+}
+
 environment {
     // Ensure apps spawned from the compositor use the configured login shell.
     SHELL "/usr/bin/zsh"
