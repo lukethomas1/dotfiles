@@ -9,6 +9,7 @@ previous_tab = "super+h"
 next_tab = "super+l"
 close_pane = "super+w"
 new_tab = "super+t"
+new_workspace = "super+n"
 split_vertical = "super+d"
 split_horizontal = "super+minus"
 
@@ -22,7 +23,7 @@ next_agent = "ctrl+super+j"
 show_agent_labels_on_pane_borders = true
 
 [ui.toast]
-delivery = "system"
+delivery = "herdr"
 
 [theme]
 name = "catppuccin"
