@@ -2,13 +2,173 @@
 set -euo pipefail
 
 # Dotfiles bootstrap — detects OS and installs chezmoi + dependencies
-# Usage: ./bootstrap.sh
+# Usage: ./bootstrap.sh [--dry-run]
 # Or:    curl -sSL <raw-url>/bootstrap.sh | bash
 
 REPO="lukethomas1/dotfiles"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+DRY_RUN=false
+
+usage() {
+  cat <<'EOF'
+Usage: ./bootstrap.sh [--dry-run]
+
+  --dry-run  Detect the profile and print the bootstrap, package, and shell
+             actions without installing, downloading, applying dotfiles, or
+             changing the login shell.
+EOF
+}
+
+case "${1:-}" in
+  "")
+    ;;
+  --dry-run|-n)
+    DRY_RUN=true
+    ;;
+  --help|-h)
+    usage
+    exit 0
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+if [ "$#" -gt 1 ]; then
+  usage >&2
+  exit 2
+fi
+
+dry_run_source_dir() {
+  if [ -d "${SCRIPT_DIR}/pkg" ]; then
+    printf '%s\n' "${SCRIPT_DIR}"
+  elif [ -d "${HOME}/.local/share/chezmoi/pkg" ]; then
+    printf '%s\n' "${HOME}/.local/share/chezmoi"
+  else
+    printf '\n'
+  fi
+}
+
+dry_run_manifest() {
+  local command_prefix="$1"
+  local manifest="$2"
+
+  if [ ! -f "${manifest}" ]; then
+    echo "  ${command_prefix} <packages from ${manifest}>"
+    return
+  fi
+
+  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' "${manifest}" | \
+    while IFS= read -r package; do
+      echo "  ${command_prefix} ${package}"
+    done
+}
+
+print_dry_run_plan() {
+  local role="$1"
+  local source_dir
+
+  source_dir="$(dry_run_source_dir)"
+
+  echo "Dry run: no changes will be made."
+  echo "Role: ${role}"
+  echo
+  echo "Bootstrap actions:"
+  case "${role}" in
+    macos)
+      if ! command -v brew >/dev/null; then
+        echo "  install Homebrew"
+      fi
+      echo "  brew install chezmoi age"
+      echo "  ensure /bin/zsh is the login shell"
+      ;;
+    arch)
+      echo "  shelly upgrade --no-confirm"
+      echo "  shelly install --no-confirm chezmoi age"
+      ;;
+    fedora)
+      if ! command -v chezmoi >/dev/null; then
+        echo "  install chezmoi"
+      fi
+      if ! command -v age >/dev/null; then
+        echo "  install age (using Linuxbrew when needed)"
+      fi
+      ;;
+    container)
+      echo "  require chezmoi from the container image"
+      echo "  install zsh and starship only when missing"
+      ;;
+  esac
+
+  if [ "${role}" != "container" ]; then
+    echo "  require ~/.config/chezmoi/key.txt before applying encrypted files"
+  fi
+
+  if [ -d "${HOME}/.local/share/chezmoi/.git" ]; then
+    echo "  chezmoi update"
+  else
+    echo "  chezmoi init --apply ${REPO}"
+  fi
+
+  echo
+  echo "Package and configuration actions:"
+  if [ -z "${source_dir}" ]; then
+    echo "  package manifests are unavailable until the dotfiles repository is cloned"
+    return
+  fi
+
+  case "${role}" in
+    macos)
+      echo "  brew bundle --file=${source_dir}/pkg/macos/Brewfile"
+      echo "  npm install -g @devcontainers/cli (when npm is available)"
+      ;;
+    arch)
+      dry_run_manifest "shelly install --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
+      echo "  import the 1Password signing key when 1password is declared"
+      dry_run_manifest "shelly aur install" "${source_dir}/pkg/arch/aur-desktop.txt"
+      echo "  flatpak remote-add --if-not-exists --user flathub <Flathub remote>"
+      dry_run_manifest "flatpak install --user --noninteractive flathub" "${source_dir}/pkg/arch/flatpak-desktop.txt"
+      echo "  install Firefox 1Password policy in /etc/firefox/policies/policies.json"
+      echo "  ensure zsh is the login shell after installation"
+      ;;
+    fedora)
+      dry_run_manifest "brew install" "${source_dir}/pkg/fedora/brew.txt"
+      ;;
+    container)
+      echo "  skip host package manifests; the Dockerfile owns container packages"
+      ;;
+  esac
+}
+
 OS="$(uname -s)"
 
 echo "Detected OS: ${OS}"
+
+if [ "${DRY_RUN}" = true ]; then
+  case "$OS" in
+    Darwin)
+      print_dry_run_plan "macos"
+      ;;
+    Linux)
+      if [ -f /etc/arch-release ]; then
+        print_dry_run_plan "arch"
+      elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
+        print_dry_run_plan "fedora"
+      elif [ -f /etc/debian_version ]; then
+        print_dry_run_plan "container"
+      else
+        echo "ERROR: Unsupported Linux distro" >&2
+        exit 1
+      fi
+      ;;
+    *)
+      echo "ERROR: Unsupported OS: ${OS}" >&2
+      exit 1
+      ;;
+  esac
+  exit 0
+fi
 
 case "$OS" in
   Darwin)
