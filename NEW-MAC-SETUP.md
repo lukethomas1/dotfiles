@@ -198,4 +198,25 @@ chezmoi status          # should be empty
 brew bundle check --file="$(chezmoi source-path)/pkg/macos/Brewfile"
 aerospace --version
 docker ps
+
+# Keyboard: the one check that matters. If this directory is missing, Karabiner's
+# privileged daemon never started, Caps Lock is NOT remapped, and no AeroSpace
+# keybinding works — even though Karabiner looks perfectly happy in the menu bar.
+ls "/Library/Application Support/org.pqrs/tmp/rootonly"
 ```
+
+If it is missing: System Settings → General → Login Items & Extensions →
+**"Allow in the Background"** → enable the pqrs.org / Karabiner-Elements entries.
+That is a *separate* approval from the Driver Extension. See `KEYBINDINGS.md`.
+
+Then, by hand:
+
+| Press | Expect |
+| --- | --- |
+| `Cmd+T` | a **herdr** tab, not a Ghostty tab |
+| `Cmd+N` | a herdr workspace |
+| `Caps+H` / `Caps+L` | move window focus |
+| `Caps+Shift+H` | move the window |
+| `Caps+Ctrl+H` | focus the monitor to the left |
+| `Caps+1`…`9` | switch workspace |
+| `Alt+B` | readline word-motion in the shell (not a workspace jump) |

@@ -207,6 +207,68 @@ Karabiner may rewrite `~/.config/karabiner/karabiner.json` (reformatting it, or
 adding fields on version upgrades), which will show up as chezmoi drift. Re-add
 intentional changes to the source file rather than to the deployed one.
 
+## Troubleshooting
+
+### Caps Lock does nothing at all
+
+**Almost always: Karabiner's privileged daemon is not running.** This is the
+single failure that has cost the most time, because everything *looks* fine —
+Karabiner sits in the menu bar, its unprivileged agents run, `pgrep` finds
+processes — and yet `karabiner.json` is never loaded and not one key is remapped.
+
+    # The one honest test. This directory is created by the privileged daemon.
+    ls "/Library/Application Support/org.pqrs/tmp/rootonly"
+
+    # And the smoking gun, if it is missing:
+    tail ~/.local/share/karabiner/log/core_service.log
+    #   core_service_daemon_client connect_failed: No such file or directory
+
+Fix: **System Settings → General → Login Items & Extensions → "Allow in the
+Background"**, enable the pqrs.org / Karabiner-Elements entries. This is a
+**separate approval from the Driver Extension**, in a different list. Granting one
+does nothing for the other, and nothing in Karabiner's UI makes that obvious.
+
+A second tell: `karabiner_cli --show-current-profile-name` returns
+`"Default profile"` (Karabiner's built-in fallback) instead of `"Default"` (ours).
+
+### Do not trust macOS status tools — check the artifact
+
+Three of them lied during this project, each convincingly:
+
+| Tool | The lie |
+| --- | --- |
+| `pgrep karabiner_grabber` | That binary has not existed since Karabiner v14. Checking for it fails *closed* on a healthy machine. |
+| `systemextensionsctl list` | Reported the driver `[activated enabled]`, then minutes later died outright (`OSSystemExtensionErrorDomain error 1`) — while the driver ran the whole time. Grepping its output invents phantom blockers. |
+| `defaults read` | Reported `NSUserKeyEquivalents` as unset while the plists plainly contained the keys. |
+
+So the checks in `bootstrap.sh` look for **running processes and files on disk**,
+never a status tool's opinion. When verifying by hand, read plists with
+`plutil -p`, not `defaults read`.
+
+### `defaults write` fails with "Could not write domain"
+
+cfprefsd gets into a degraded state where it refuses writes — and even claims a
+domain "not found" while its plist sits on disk. Not a permissions problem, and
+not fixable by retrying forever. **Log out or restart.** The script warns and
+continues rather than aborting the bootstrap over it.
+
+### Changes that need a restart to appear
+
+| Change | Needs |
+| --- | --- |
+| `Cmd+H` freed for herdr (`NSUserKeyEquivalents`) | **Restart Ghostty** — it reads the menu override only at launch |
+| Screenshots on `Ctrl+Shift+1/2/3` | **Log out and back in** — symbolic hotkeys are read at login |
+| A changed `aerospace.toml` | `aerospace reload-config` |
+| A changed `karabiner.json` | nothing; Karabiner watches the file |
+
+### Ghostty reads TWO config files
+
+`~/.config/ghostty/config` **and** `~/.config/ghostty/config.ghostty`, merging
+both, with `config.ghostty` winning on conflicts. Only those two exact names —
+`config.foo` and `mystuff.ghostty` are ignored. chezmoi manages
+`config.ghostty`, so a stale hand-written `config` silently contributes settings
+chezmoi cannot see. `bootstrap.sh` retires any it finds.
+
 ## Files
 
 | File | Role |
