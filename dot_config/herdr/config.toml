@@ -5,14 +5,19 @@ onboarding = false
 prefix = "alt+space"
 
 # Physical Cmd/Super keys remain Super, so these are pressed as Cmd+… .
-previous_tab = "super+h"
-next_tab = "super+l"
-close_pane = "super+w"
-new_tab = "super+t"
-new_workspace = "super+n"
-split_vertical = "super+d"
-split_horizontal = "super+minus"
+#
+# These are arrays, not bare strings, on purpose: a bare string REPLACES herdr's
+# default binding instead of adding to it. Keeping the prefix chords alive gives
+# a fallback for exactly the cases where the OS claims a Cmd key.
+previous_tab = ["prefix+p", "super+h"]
+next_tab = ["prefix+n", "super+l"]
+close_pane = ["prefix+x", "super+w"]
+new_tab = ["prefix+c", "super+t"]
+new_workspace = ["prefix+shift+n", "super+n"]
+split_vertical = ["prefix+v", "super+d"]
+split_horizontal = ["prefix+minus", "super+minus"]
 
+# No herdr defaults exist for these, so a single binding is complete.
 previous_workspace = "super+k"
 next_workspace = "super+j"
 

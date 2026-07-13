@@ -50,6 +50,45 @@ dry_run_source_dir() {
   fi
 }
 
+# Karabiner-Elements supplies the Caps Lock -> Alt+Cmd remap that every AeroSpace
+# keybinding is built on (see KEYBINDINGS.md). macOS has no spare modifier bit, so
+# Caps Lock can only impersonate Alt+Cmd, and Karabiner is what does the
+# impersonating. Its DriverKit extension cannot be approved from a script: until a
+# human approves it, Caps Lock emits nothing and AeroSpace answers no key at all.
+configure_karabiner() {
+  local app="/Applications/Karabiner-Elements.app"
+
+  if [ ! -d "${app}" ]; then
+    echo "WARN: Karabiner-Elements is not installed, so Caps Lock will not act as"
+    echo "      the window-manager modifier and AeroSpace will not respond to any"
+    echo "      keybinding. Install it with:"
+    echo "        brew install --cask karabiner-elements"
+    return
+  fi
+
+  # The first launch registers the virtual HID driver and raises the approval
+  # prompt. Harmless to repeat once approved.
+  echo "Launching Karabiner-Elements (first run requests driver approval)..."
+  open -ga "${app}" || true
+
+  cat <<'EOF'
+
+  ACTION REQUIRED — Karabiner-Elements needs system approval before Caps Lock works:
+
+    1. System Settings > General > Login Items & Extensions > Driver Extensions
+         enable "Karabiner-DriverKit-VirtualHIDDevice"
+    2. System Settings > Privacy & Security > Input Monitoring
+         enable "karabiner_grabber" and "Karabiner-Elements"
+    3. Restart if macOS asks.
+
+  Until that is done, Caps Lock emits nothing and AeroSpace responds to no
+  keybinding. Leave System Settings > Keyboard > Modifier Keys at its default
+  (Caps Lock = Caps Lock); stacking a second remap there is the usual cause of
+  "Karabiner isn't working". See KEYBINDINGS.md.
+
+EOF
+}
+
 dry_run_manifest() {
   local command_prefix="$1"
   local manifest="$2"
@@ -189,6 +228,7 @@ print_dry_run_plan() {
     macos)
       echo "  brew bundle --file=${source_dir}/pkg/macos/Brewfile"
       echo "  npm install -g @devcontainers/cli (when npm is available)"
+      echo "  launch Karabiner-Elements once and print its driver-approval steps"
       ;;
     arch)
       dry_run_manifest "shelly install --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
@@ -351,6 +391,10 @@ if [ "${CHEZMOI_ROLE}" = "macos" ]; then
     echo "Installing npm globals..."
     npm install -g @devcontainers/cli 2>/dev/null || sudo npm install -g @devcontainers/cli
   fi
+  # Runs after brew bundle: the cask must exist before the app can be launched.
+  # chezmoi has already written ~/.config/karabiner/karabiner.json above, so
+  # Karabiner picks up the Caps Lock rule on its very first launch.
+  configure_karabiner
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing Arch host packages..."
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \

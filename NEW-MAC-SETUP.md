@@ -43,10 +43,38 @@ Then wait for `brew bundle` (longest phase — installs aerospace, ghostty, nvim
 
 ## 2. Post-bootstrap manual steps
 
+- **Karabiner-Elements driver** (do this first — nothing else works without it):
+  bootstrap installs and launches it, but its driver needs your approval.
+  1. System Settings → General → Login Items & Extensions → **Driver Extensions** →
+     enable `Karabiner-DriverKit-VirtualHIDDevice`
+  2. System Settings → Privacy & Security → **Input Monitoring** → enable
+     `karabiner_grabber` and `Karabiner-Elements`
+  3. Restart if prompted.
+
+  Karabiner is what makes Caps Lock the window-manager modifier (it emits
+  Alt+Cmd). **Until it is approved, Caps Lock does nothing and AeroSpace responds
+  to no keybinding at all** — the Mac will feel broken. Leave System Settings →
+  Keyboard → Modifier Keys at its default; a second remap there is the usual
+  cause of "Karabiner isn't working". See `KEYBINDINGS.md`.
 - **Aerospace accessibility**: System Settings → Privacy & Security → Accessibility → enable AeroSpace
 - **Ghostty Gatekeeper**: first launch → System Settings → Privacy & Security → Open Anyway
+- **Log out and back in** — the screenshot shortcuts (Ctrl+Shift+1/2/3, matching
+  Niri) only take effect after a fresh login.
 - **Default shell**: bootstrap runs `chsh -s /bin/zsh` automatically. To do it
   manually: `chsh -s /bin/zsh`
+
+### Sanity-check the keyboard
+
+```bash
+# Caps Lock should now be the WM modifier:
+#   Caps+Return -> new Ghostty window     Caps+1..9 -> workspaces
+#   Caps+H/L    -> focus left/right       Caps+Q    -> close window
+# Cmd belongs to herdr:
+#   Cmd+T -> new herdr tab (NOT a Ghostty tab)   Cmd+N -> new herdr workspace
+```
+
+Cmd is inside the Caps chord, so verify these three by hand after any macOS
+update: `Caps+Tab` (vs the Dock's app switcher), `Caps+Q`, and `Cmd+T`.
 
 ## 3. Clone the Nalej sandbox repo
 

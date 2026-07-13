@@ -58,6 +58,8 @@ brew "pulumi/tap/pulumi"
 cask "nikitabobko/tap/aerospace"
 cask "caffeine"
 cask "ghostty@tip"
+# Caps Lock -> Alt+Cmd, the AeroSpace window-manager modifier. See KEYBINDINGS.md.
+cask "karabiner-elements"
 cask "rio"
 cask "wezterm"
 go "golang.org/x/tools/gopls"

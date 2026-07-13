@@ -58,11 +58,14 @@ assets/**
 # Arch owns Niri/Noctalia and the shared Ghostty configuration.
 {{ if eq $role "arch" }}
 .config/aerospace/**
+.config/karabiner/**
 {{ end }}
 
 # Fedora COSMIC Atomic owns neither AeroSpace nor the Arch compositor stack.
 {{ if eq $role "fedora" }}
 .config/aerospace/**
+.config/karabiner/**
+.config/hypr/**
 .config/niri/**
 .config/noctalia/**
 .bashrc

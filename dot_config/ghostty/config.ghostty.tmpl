@@ -12,10 +12,29 @@ background-blur-radius = 20
 scrollback-limit = 99_999_999
 clipboard-read = allow
 clipboard-paste-protection = false
+
+# Option must report as Alt, or Option+Space composes a non-breaking space and
+# herdr never sees its prefix. Ignored on Linux.
+macos-option-as-alt = true
+
 keybind = shift+enter=text:\x1b\r
-# Reserve Cmd+D for Herdr's vertical split action rather than Ghostty splits.
+
+# herdr owns the Cmd layer: tabs, workspaces and panes. Ghostty's macOS defaults
+# claim the same chords, so unbind them and let herdr receive them over the Kitty
+# keyboard protocol. Ghostty's Linux defaults use Ctrl rather than Super, so every
+# line below is a silent no-op there and one shared file serves both hosts.
+#
+# `super+-` must use the literal character: `super+minus` parses as a physical-key
+# trigger and would not match the unicode-trigger default, unbinding nothing.
+keybind = super+t=unbind
+keybind = super+n=unbind
+keybind = super+w=unbind
+keybind = super+k=unbind
+keybind = super+j=unbind
 keybind = super+d=unbind
+keybind = super+-=unbind
+
+# Cmd+- now belongs to herdr, so keep a font-size decrease paired with Cmd+=.
+keybind = super+shift+minus=decrease_font_size:1
+
 keybind = super+shift+d=new_split:down
-keybind = ctrl+w=close_surface
-keybind = ctrl+h=goto_split:left
-keybind = ctrl+l=goto_split:right

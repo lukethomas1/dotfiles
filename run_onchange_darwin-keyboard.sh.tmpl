@@ -1,0 +1,62 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+set -euo pipefail
+
+# macOS keyboard overrides that cannot live in a config file.
+# Re-runs only when this script's contents change. See KEYBINDINGS.md.
+
+echo "Applying macOS keyboard overrides..."
+
+# ─── Menu-bar shortcuts ───────────────────────────────────────────────────────
+#
+# Cmd+H is herdr's previous_tab, but "Hide Ghostty" is hardcoded in Ghostty's
+# MainMenu.xib and is never synced from its config — it can be neither `unbind`-ed
+# nor `ignore`-d. Retitling the menu shortcut is the only way to free the key.
+#
+# "Hide Others" (Opt+Cmd+H) and "Close All Windows" (Opt+Cmd+W) are moved for a
+# different reason: Caps Lock impersonates Alt+Cmd, so if AeroSpace ever stops
+# running, Caps+H and Caps+W would fall through to those menu items — and closing
+# every window is destructive. Parking them defuses that.
+#
+# They are parked on F17/F18/F19, which this keyboard does not physically have,
+# so they become genuinely unreachable rather than merely awkward.
+defaults write com.mitchellh.ghostty NSUserKeyEquivalents -dict-add "Hide Ghostty" '\UF718'
+defaults write -g NSUserKeyEquivalents -dict-add "Hide Others" '\UF719'
+defaults write -g NSUserKeyEquivalents -dict-add "Close All Windows" '\UF71A'
+
+# ─── Screenshots ──────────────────────────────────────────────────────────────
+#
+# Match Niri's Ctrl+Shift+1/2/3 (see dot_config/niri/cfg/keybinds.kdl).
+# Parameters are [ASCII code, virtual keycode, modifier mask].
+#   '1' = 49/18   '2' = 50/19   '3' = 51/20
+#   Ctrl (262144) + Shift (131072) = 393216
+#
+#   30  = save selected area to file   (was Shift+Cmd+4)  -> Ctrl+Shift+1
+#   28  = save whole screen to file    (was Shift+Cmd+3)  -> Ctrl+Shift+2
+#   184 = screenshot & recording UI    (was Shift+Cmd+5)  -> Ctrl+Shift+3
+#         macOS has no standalone window-capture hotkey; this UI is the closest
+#         thing to Niri's screenshot-window.
+set_hotkey() {
+  local id="$1" ascii="$2" keycode="$3"
+  defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${id}" "
+    <dict>
+      <key>enabled</key><true/>
+      <key>value</key><dict>
+        <key>type</key><string>standard</string>
+        <key>parameters</key>
+        <array>
+          <integer>${ascii}</integer>
+          <integer>${keycode}</integer>
+          <integer>393216</integer>
+        </array>
+      </dict>
+    </dict>"
+}
+
+set_hotkey 30 49 18
+set_hotkey 28 50 19
+set_hotkey 184 51 20
+
+echo "Done. Log out and back in for the screenshot shortcuts to take effect,"
+echo "and restart Ghostty to pick up the menu-shortcut change."
+{{ end -}}
