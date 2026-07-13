@@ -56,6 +56,22 @@ KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/kara
 # Its existence is the one honest proof that the daemon actually ran.
 KARABINER_ROOTONLY="/Library/Application Support/org.pqrs/tmp/rootonly"
 
+# Is the DriverKit virtual-HID extension loaded?
+#
+# Checked by looking for the running .dext process, NOT by asking
+# `systemextensionsctl list`. That tool intermittently dies outright —
+#   systemextensionsctl: list command failed: The operation couldn't be
+#   completed. (OSSystemExtensionErrorDomain error 1.)
+# — and a grep over its output then fails CLOSED, inventing a blocker on a
+# machine where the driver is loaded and working perfectly. A running process is
+# direct evidence; a status tool's opinion is not.
+#
+# ps is used rather than pgrep because pgrep has also been seen failing here with
+# "sysmon request failed: sysmond service not found".
+karabiner_driver_running() {
+  ps -Ao command 2>/dev/null | grep -q '[K]arabiner-DriverKit-VirtualHIDDevice\.dext'
+}
+
 # Is Karabiner's privileged daemon alive?
 #
 # Check the daemon, not "some Karabiner process". Karabiner runs unprivileged
@@ -79,9 +95,39 @@ karabiner_daemon_running() {
 # Is OUR profile actually loaded? If the daemon never came up, Karabiner falls
 # back to its built-in profile — confusingly named "Default profile" — rather
 # than the "Default" profile defined in dot_config/karabiner/karabiner.json.
+#
+# karabiner_cli sometimes blocks forever instead of answering, so it is run under
+# a hand-rolled timeout: macOS ships no timeout(1), and depending on coreutils'
+# gtimeout here would be a bootstrap that needs Homebrew to check Homebrew.
+# A timeout is treated as a PASS. This is the soft check; karabiner_daemon_running
+# is the hard gate, and hanging an unattended bootstrap on a flaky CLI would be a
+# worse failure than missing a rare misconfiguration.
 karabiner_profile_loaded() {
-  [ -x "${KARABINER_CLI}" ] || return 0  # nothing to check against
-  [ "$("${KARABINER_CLI}" --show-current-profile-name 2>/dev/null)" = "Default" ]
+  [ -x "${KARABINER_CLI}" ] || return 0
+
+  local tmp pid waited=0
+  tmp="$(mktemp)"
+  "${KARABINER_CLI}" --show-current-profile-name >"${tmp}" 2>/dev/null &
+  pid=$!
+
+  while kill -0 "${pid}" 2>/dev/null && [ "${waited}" -lt 5 ]; do
+    sleep 1
+    waited=$((waited + 1))
+  done
+
+  if kill -0 "${pid}" 2>/dev/null; then
+    kill "${pid}" 2>/dev/null
+    wait "${pid}" 2>/dev/null || true
+    rm -f "${tmp}"
+    echo "  NOTE: karabiner_cli did not respond in ${waited}s; skipping the profile check."
+    return 0
+  fi
+
+  wait "${pid}" 2>/dev/null || true
+  local name
+  name="$(cat "${tmp}")"
+  rm -f "${tmp}"
+  [ "${name}" = "Default" ]
 }
 
 # Launch the apps whose permissions must be granted by hand. Launching is what
@@ -131,14 +177,11 @@ preflight_macos() {
       Fix: brew install --cask karabiner-elements
 EOF
   else
-    # An approved driver extension reports "[activated enabled]".
-    # One still awaiting approval reports "[activated waiting for user]".
-    if ! systemextensionsctl list 2>/dev/null | grep -i karabiner | \
-         grep -q 'activated enabled'; then
+    if ! karabiner_driver_running; then
       blockers=$((blockers + 1))
       cat <<'EOF'
 
-  [ ] Karabiner's driver extension is not approved.
+  [ ] Karabiner's virtual-HID driver extension is not loaded.
       Fix: System Settings > General > Login Items & Extensions > Driver Extensions
            Enable "Karabiner-DriverKit-VirtualHIDDevice".
            Restart if macOS asks.
