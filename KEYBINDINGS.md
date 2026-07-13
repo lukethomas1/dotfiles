@@ -53,6 +53,27 @@ same way for `Mod+Ctrl`.
 AeroSpace also requires one consistent modifier order (`alt-ctrl-cmd-shift`);
 declaring the same chord in two orders is a config error, not a duplicate.
 
+## Shift moves, Ctrl changes monitor
+
+    Mod+Shift+HJKL / arrows  ->  move the window
+    Mod+Ctrl+HJKL  / arrows  ->  focus another monitor
+    Mod+Ctrl+Shift+arrows    ->  move the window to another monitor
+
+Niri originally had these the other way round (Shift focused the monitor, Ctrl
+moved the window). They were **swapped on both hosts** — the one deliberate change
+to the Arch side in this whole project — because:
+
+- Shift-to-move is the i3 convention and AeroSpace's own default, so it is what
+  the hands already expect.
+- Both chords remain expressible on macOS, so the two hosts stay identical.
+
+Note the composition still reads cleanly: Shift means *move*, Ctrl means *monitor*,
+so Ctrl+Shift means *move to monitor*.
+
+The Niri wheel bindings (`Mod+Ctrl+WheelScroll…`) still use Ctrl for "move" and
+were left alone — they are mouse-only, have no AeroSpace counterpart, and
+renaming them would buy nothing.
+
 ## Why Ghostty needs `unbind` lines on macOS but not Linux
 
 Ghostty's defaults are platform-conditional: internally, `ctrlOrSuper()` maps

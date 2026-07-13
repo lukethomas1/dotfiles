@@ -79,27 +79,29 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
     alt-cmd-up = 'focus up'
     alt-cmd-down = 'focus down'
 
-    # ─── Monitor focus ───  (Niri: Mod+J/K and Mod+Shift+H/J/K/L both do this)
+    # ─── Move window ───  (Niri: Mod+Shift+H/J/K/L and Mod+Shift+arrows)
+    # Shift MOVES. This is the i3 convention and AeroSpace's own default, and
+    # Niri was swapped to match — the one deliberate change to the Arch side.
+    alt-cmd-shift-h = 'move left'
+    alt-cmd-shift-l = 'move right'
+    alt-cmd-shift-j = 'move down'
+    alt-cmd-shift-k = 'move up'
+    alt-cmd-shift-left = 'move left'
+    alt-cmd-shift-right = 'move right'
+    alt-cmd-shift-up = 'move up'
+    alt-cmd-shift-down = 'move down'
+
+    # ─── Monitor focus ───  (Niri: Mod+J/K, and Mod+Ctrl+H/J/K/L + arrows)
     alt-cmd-j = 'focus-monitor down'
     alt-cmd-k = 'focus-monitor up'
-    alt-cmd-shift-h = 'focus-monitor left'
-    alt-cmd-shift-l = 'focus-monitor right'
-    alt-cmd-shift-j = 'focus-monitor down'
-    alt-cmd-shift-k = 'focus-monitor up'
-    alt-cmd-shift-left = 'focus-monitor left'
-    alt-cmd-shift-right = 'focus-monitor right'
-    alt-cmd-shift-up = 'focus-monitor up'
-    alt-cmd-shift-down = 'focus-monitor down'
-
-    # ─── Move window ───  (Niri: Mod+Ctrl+H/J/K/L and Mod+Ctrl+arrows)
-    alt-ctrl-cmd-h = 'move left'
-    alt-ctrl-cmd-l = 'move right'
-    alt-ctrl-cmd-j = 'move down'
-    alt-ctrl-cmd-k = 'move up'
-    alt-ctrl-cmd-left = 'move left'
-    alt-ctrl-cmd-right = 'move right'
-    alt-ctrl-cmd-up = 'move up'
-    alt-ctrl-cmd-down = 'move down'
+    alt-ctrl-cmd-h = 'focus-monitor left'
+    alt-ctrl-cmd-l = 'focus-monitor right'
+    alt-ctrl-cmd-j = 'focus-monitor down'
+    alt-ctrl-cmd-k = 'focus-monitor up'
+    alt-ctrl-cmd-left = 'focus-monitor left'
+    alt-ctrl-cmd-right = 'focus-monitor right'
+    alt-ctrl-cmd-up = 'focus-monitor up'
+    alt-ctrl-cmd-down = 'focus-monitor down'
 
     # ─── Move window to monitor ───  (Niri: Mod+Ctrl+Shift+arrows)
     alt-ctrl-cmd-shift-left = 'move-node-to-monitor --focus-follows-window left'

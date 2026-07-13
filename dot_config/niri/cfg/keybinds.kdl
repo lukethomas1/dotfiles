@@ -46,28 +46,32 @@ binds {
     Mod+Down                            { focus-window-down; }
     Mod+J                               { focus-monitor-down; }
 
-    Mod+CTRL+Left                       { move-column-left; }
-    Mod+CTRL+H                          { move-column-left; }
-    Mod+CTRL+Right                      { move-column-right; }
-    Mod+CTRL+L                          { move-column-right; }
-    Mod+CTRL+UP                         { move-window-up; }
-    Mod+CTRL+K                          { move-window-up; }
-    Mod+CTRL+Down                       { move-window-down; }
-    Mod+CTRL+J                          { move-window-down; }
+    // Mod+Shift MOVES the window; Mod+CTRL FOCUSES another monitor.
+    // These two were swapped from Niri's original layout so that macOS/AeroSpace
+    // can mirror them exactly — and because Shift-to-move is the i3 convention
+    // and AeroSpace's own default. Keep both hosts in step. See KEYBINDINGS.md.
+    Mod+Shift+Left                      { move-column-left; }
+    Mod+Shift+H                         { move-column-left; }
+    Mod+Shift+Right                     { move-column-right; }
+    Mod+Shift+L                         { move-column-right; }
+    Mod+Shift+UP                        { move-window-up; }
+    Mod+Shift+K                         { move-window-up; }
+    Mod+Shift+Down                      { move-window-down; }
+    Mod+Shift+J                         { move-window-down; }
 
     Mod+Home                            { focus-column-first; }
     Mod+End                             { focus-column-last; }
-    Mod+CTRL+Home                       { move-column-to-first; }
-    Mod+CTRL+End                        { move-column-to-last; }
+    Mod+Shift+Home                      { move-column-to-first; }
+    Mod+Shift+End                       { move-column-to-last; }
 
-    Mod+Shift+Left                      { focus-monitor-left; }
-    Mod+Shift+Right                     { focus-monitor-right; }
-    Mod+Shift+UP                        { focus-monitor-up; }
-    Mod+Shift+Down                      { focus-monitor-down; }
-    Mod+Shift+H                         { focus-monitor-left; }
-    Mod+Shift+L                         { focus-monitor-right; }
-    Mod+Shift+K                         { focus-monitor-up; }
-    Mod+Shift+J                         { focus-monitor-down; }
+    Mod+CTRL+Left                       { focus-monitor-left; }
+    Mod+CTRL+Right                      { focus-monitor-right; }
+    Mod+CTRL+UP                         { focus-monitor-up; }
+    Mod+CTRL+Down                       { focus-monitor-down; }
+    Mod+CTRL+H                          { focus-monitor-left; }
+    Mod+CTRL+L                          { focus-monitor-right; }
+    Mod+CTRL+K                          { focus-monitor-up; }
+    Mod+CTRL+J                          { focus-monitor-down; }
 
     Mod+Shift+CTRL+Left                 { move-column-to-monitor-left; }
     Mod+Shift+CTRL+Right                { move-column-to-monitor-right; }
