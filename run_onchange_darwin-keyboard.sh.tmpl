@@ -7,6 +7,19 @@ set -euo pipefail
 
 echo "Applying macOS keyboard overrides..."
 
+# `defaults` talks to cfprefsd, which intermittently refuses a write with
+#   Could not write domain com.mitchellh.ghostty; exiting
+# even when the plist is perfectly writable. Under `set -e` that single hiccup
+# would abort the whole bootstrap over what is, at worst, a menu shortcut. Retry
+# once, then warn and carry on. Everything below is re-applied on the next run.
+defaults_write() {
+  defaults write "$@" 2>/dev/null && return 0
+  sleep 1
+  defaults write "$@" 2>/dev/null && return 0
+  echo "  WARN: 'defaults write $1 $2' failed (cfprefsd). Re-run bootstrap.sh to retry."
+  return 0
+}
+
 # ─── Menu-bar shortcuts ───────────────────────────────────────────────────────
 #
 # Cmd+H is herdr's previous_tab, but "Hide Ghostty" is hardcoded in Ghostty's
@@ -20,9 +33,9 @@ echo "Applying macOS keyboard overrides..."
 #
 # They are parked on F17/F18/F19, which this keyboard does not physically have,
 # so they become genuinely unreachable rather than merely awkward.
-defaults write com.mitchellh.ghostty NSUserKeyEquivalents -dict-add "Hide Ghostty" '\UF718'
-defaults write -g NSUserKeyEquivalents -dict-add "Hide Others" '\UF719'
-defaults write -g NSUserKeyEquivalents -dict-add "Close All Windows" '\UF71A'
+defaults_write com.mitchellh.ghostty NSUserKeyEquivalents -dict-add "Hide Ghostty" '\UF718'
+defaults_write -g NSUserKeyEquivalents -dict-add "Hide Others" '\UF719'
+defaults_write -g NSUserKeyEquivalents -dict-add "Close All Windows" '\UF71A'
 
 # ─── Screenshots ──────────────────────────────────────────────────────────────
 #
@@ -38,7 +51,7 @@ defaults write -g NSUserKeyEquivalents -dict-add "Close All Windows" '\UF71A'
 #         thing to Niri's screenshot-window.
 set_hotkey() {
   local id="$1" ascii="$2" keycode="$3"
-  defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${id}" "
+  defaults_write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add "${id}" "
     <dict>
       <key>enabled</key><true/>
       <key>value</key><dict>
