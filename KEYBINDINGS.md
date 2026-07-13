@@ -158,12 +158,25 @@ Configuration is never written to a machine that cannot yet honour it. The gate
 | --- | --- |
 | Karabiner installed | `/Applications/Karabiner-Elements.app` exists |
 | Driver extension approved | `systemextensionsctl list` reports `activated enabled` (an unapproved one reports `activated waiting for user`) |
-| Input Monitoring granted | `karabiner_grabber` is running — it cannot claim the keyboard without it |
+| Karabiner services running | any process under the `org.pqrs` install prefix |
+| Karabiner responsive | `karabiner_cli --show-current-profile-name` succeeds |
 | AeroSpace Accessibility granted | `aerospace list-monitors` succeeds; the CLI can only reach a server that has the grant |
 
 None of these can be approved from a script. On failure the script prints the
 exact System Settings path for each and exits non-zero. Grant them and re-run —
 bootstrap is idempotent and picks up where it left off.
+
+**Do not look for Karabiner in System Settings → Privacy & Security → Input
+Monitoring.** It is normally not listed there at all: granting Accessibility
+covers input monitoring for it, per pqrs.org's own installation guide. Hunting
+for the missing entry is a dead end.
+
+The service check is matched on the `org.pqrs` install prefix rather than a
+process name, on purpose. Those names churn across major versions — v13/v14 ran a
+`karabiner_grabber` binary, which 16.x replaced with a root
+`Karabiner-Core-Service`. A check pinned to a name that no longer exists fails
+*closed*, blocking a bootstrap whose permissions are actually fine. (That is not
+hypothetical; the first version of this gate did exactly that.)
 
 It also warns if System Settings → Keyboard → Modifier Keys holds a custom
 mapping: a second Caps Lock remap there silently fights Karabiner, and is the

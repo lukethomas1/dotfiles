@@ -50,14 +50,26 @@ dry_run_source_dir() {
   fi
 }
 
+KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
+
+# Are Karabiner's background services alive?
+#
+# Deliberately matched on the org.pqrs install prefix rather than a process name.
+# The names churn between major versions — v13/v14 ran a `karabiner_grabber`
+# binary, which 16.x replaced with a root "Karabiner-Core-Service" — and a check
+# pinned to a name that no longer exists fails closed, blocking a bootstrap whose
+# permissions are in fact perfectly fine.
+karabiner_running() {
+  pgrep -f 'org\.pqrs' >/dev/null 2>&1
+}
+
 # Launch the apps whose permissions must be granted by hand. Launching is what
 # actually raises the approval prompts; neither can be approved from a script.
 # Idempotent: harmless once already approved and running.
 prompt_macos_permissions() {
   local launched=false
 
-  if [ -d "/Applications/Karabiner-Elements.app" ] && \
-     ! pgrep -x karabiner_grabber >/dev/null 2>&1; then
+  if [ -d "/Applications/Karabiner-Elements.app" ] && ! karabiner_running; then
     echo "Launching Karabiner-Elements (first run requests driver approval)..."
     open -ga "Karabiner-Elements" || true
     launched=true
@@ -112,15 +124,32 @@ EOF
 EOF
     fi
 
-    # The grabber is the process that claims the keyboard. If it is not running,
-    # Input Monitoring is almost certainly the reason.
-    if ! pgrep -x karabiner_grabber >/dev/null 2>&1; then
+    # Karabiner's background services must be running to claim the keyboard.
+    #
+    # Note: do NOT go looking for Karabiner in System Settings > Input Monitoring.
+    # It usually is not listed there at all — granting Accessibility covers input
+    # monitoring for it, per pqrs.org's own installation guide. Chasing that
+    # missing entry is a dead end.
+    if ! karabiner_running; then
       blockers=$((blockers + 1))
       cat <<'EOF'
 
-  [ ] karabiner_grabber is not running — Input Monitoring is most likely denied.
-      Fix: System Settings > Privacy & Security > Input Monitoring
-           Enable "karabiner_grabber" and "Karabiner-Elements".
+  [ ] Karabiner's background services are not running.
+      Fix: System Settings > General > Login Items & Extensions
+             Allow background items for "Karabiner-Elements".
+           System Settings > Privacy & Security > Accessibility
+             Enable "Karabiner-Elements". (This also covers Input Monitoring —
+             Karabiner will not appear in the Input Monitoring list, and does
+             not need to.)
+           Then launch Karabiner-Elements.
+EOF
+    elif [ -x "${KARABINER_CLI}" ] && \
+         ! "${KARABINER_CLI}" --show-current-profile-name >/dev/null 2>&1; then
+      blockers=$((blockers + 1))
+      cat <<'EOF'
+
+  [ ] Karabiner is running but not responding to karabiner_cli.
+      Fix: quit and relaunch Karabiner-Elements. If it persists, restart.
 EOF
     fi
   fi

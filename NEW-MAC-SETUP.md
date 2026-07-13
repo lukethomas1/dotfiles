@@ -49,12 +49,17 @@ then **stops before applying your dotfiles**, listing exactly what to approve:
 
 1. System Settings → General → **Login Items & Extensions** → Driver Extensions →
    enable `Karabiner-DriverKit-VirtualHIDDevice`
-2. System Settings → Privacy & Security → **Input Monitoring** → enable
-   `karabiner_grabber` and `Karabiner-Elements`
-3. System Settings → Privacy & Security → **Accessibility** → enable `AeroSpace`
+2. System Settings → General → **Login Items & Extensions** → allow background
+   items for `Karabiner-Elements`
+3. System Settings → Privacy & Security → **Accessibility** → enable
+   `Karabiner-Elements` **and** `AeroSpace`
 
 Restart if macOS asks. **Then re-run `bootstrap.sh`** — it is idempotent and will
 pick up where it left off, applying the dotfiles once the permissions are in place.
+
+> **Don't go hunting for Karabiner in Privacy & Security → Input Monitoring.** It
+> is normally not listed there at all — granting Accessibility covers input
+> monitoring for it. Chasing the missing entry is a dead end.
 
 This stop is deliberate. Caps Lock is the window-manager modifier, and Karabiner
 is what makes it emit Alt+Cmd. Applying the configs before Karabiner is running
