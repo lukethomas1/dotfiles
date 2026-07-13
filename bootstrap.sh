@@ -50,43 +50,126 @@ dry_run_source_dir() {
   fi
 }
 
-# Karabiner-Elements supplies the Caps Lock -> Alt+Cmd remap that every AeroSpace
-# keybinding is built on (see KEYBINDINGS.md). macOS has no spare modifier bit, so
-# Caps Lock can only impersonate Alt+Cmd, and Karabiner is what does the
-# impersonating. Its DriverKit extension cannot be approved from a script: until a
-# human approves it, Caps Lock emits nothing and AeroSpace answers no key at all.
-configure_karabiner() {
-  local app="/Applications/Karabiner-Elements.app"
+# Launch the apps whose permissions must be granted by hand. Launching is what
+# actually raises the approval prompts; neither can be approved from a script.
+# Idempotent: harmless once already approved and running.
+prompt_macos_permissions() {
+  local launched=false
 
-  if [ ! -d "${app}" ]; then
-    echo "WARN: Karabiner-Elements is not installed, so Caps Lock will not act as"
-    echo "      the window-manager modifier and AeroSpace will not respond to any"
-    echo "      keybinding. Install it with:"
-    echo "        brew install --cask karabiner-elements"
-    return
+  if [ -d "/Applications/Karabiner-Elements.app" ] && \
+     ! pgrep -x karabiner_grabber >/dev/null 2>&1; then
+    echo "Launching Karabiner-Elements (first run requests driver approval)..."
+    open -ga "Karabiner-Elements" || true
+    launched=true
   fi
 
-  # The first launch registers the virtual HID driver and raises the approval
-  # prompt. Harmless to repeat once approved.
-  echo "Launching Karabiner-Elements (first run requests driver approval)..."
-  open -ga "${app}" || true
+  if [ -d "/Applications/AeroSpace.app" ] && ! aerospace list-monitors >/dev/null 2>&1; then
+    echo "Launching AeroSpace (first run requests Accessibility)..."
+    open -ga "AeroSpace" || true
+    launched=true
+  fi
 
-  cat <<'EOF'
+  # Give the apps a moment to register their extensions and raise their prompts,
+  # so the preflight below reports the real state rather than a startup race.
+  if [ "${launched}" = true ]; then
+    sleep 5
+  fi
+}
 
-  ACTION REQUIRED — Karabiner-Elements needs system approval before Caps Lock works:
+# Gate the dotfiles apply on the permissions that only a human can grant.
+#
+# This is deliberately a hard stop, not a warning. Every AeroSpace binding lives
+# on alt-cmd-* — the chord Karabiner makes Caps Lock emit (see KEYBINDINGS.md).
+# Applying the dotfiles before Karabiner is running would leave the machine in its
+# worst possible state: a window manager that answers no key at all, and no
+# obvious reason why. Better to stop and say so.
+preflight_macos() {
+  local blockers=0
 
-    1. System Settings > General > Login Items & Extensions > Driver Extensions
-         enable "Karabiner-DriverKit-VirtualHIDDevice"
-    2. System Settings > Privacy & Security > Input Monitoring
-         enable "karabiner_grabber" and "Karabiner-Elements"
-    3. Restart if macOS asks.
+  echo "Checking macOS permissions..."
 
-  Until that is done, Caps Lock emits nothing and AeroSpace responds to no
-  keybinding. Leave System Settings > Keyboard > Modifier Keys at its default
-  (Caps Lock = Caps Lock); stacking a second remap there is the usual cause of
-  "Karabiner isn't working". See KEYBINDINGS.md.
+  if [ ! -d "/Applications/Karabiner-Elements.app" ]; then
+    blockers=$((blockers + 1))
+    cat <<'EOF'
 
+  [ ] Karabiner-Elements is not installed.
+      Caps Lock is the window-manager modifier; Karabiner is what makes it emit
+      Alt+Cmd. Without it, no AeroSpace keybinding works.
+      Fix: brew install --cask karabiner-elements
 EOF
+  else
+    # An approved driver extension reports "[activated enabled]".
+    # One still awaiting approval reports "[activated waiting for user]".
+    if ! systemextensionsctl list 2>/dev/null | grep -i karabiner | \
+         grep -q 'activated enabled'; then
+      blockers=$((blockers + 1))
+      cat <<'EOF'
+
+  [ ] Karabiner's driver extension is not approved.
+      Fix: System Settings > General > Login Items & Extensions > Driver Extensions
+           Enable "Karabiner-DriverKit-VirtualHIDDevice".
+           Restart if macOS asks.
+EOF
+    fi
+
+    # The grabber is the process that claims the keyboard. If it is not running,
+    # Input Monitoring is almost certainly the reason.
+    if ! pgrep -x karabiner_grabber >/dev/null 2>&1; then
+      blockers=$((blockers + 1))
+      cat <<'EOF'
+
+  [ ] karabiner_grabber is not running — Input Monitoring is most likely denied.
+      Fix: System Settings > Privacy & Security > Input Monitoring
+           Enable "karabiner_grabber" and "Karabiner-Elements".
+EOF
+    fi
+  fi
+
+  if [ ! -d "/Applications/AeroSpace.app" ]; then
+    blockers=$((blockers + 1))
+    cat <<'EOF'
+
+  [ ] AeroSpace is not installed.
+      Fix: brew install --cask nikitabobko/tap/aerospace
+EOF
+  elif ! aerospace list-monitors >/dev/null 2>&1; then
+    # The CLI can only talk to a running server, and the server cannot run
+    # without Accessibility. A successful query proves the grant.
+    blockers=$((blockers + 1))
+    cat <<'EOF'
+
+  [ ] AeroSpace is not responding — its Accessibility grant is missing.
+      Fix: System Settings > Privacy & Security > Accessibility
+           Enable "AeroSpace", then relaunch it.
+EOF
+  fi
+
+  if [ "${blockers}" -gt 0 ]; then
+    cat <<EOF
+
+────────────────────────────────────────────────────────────────────────────
+Bootstrap stopped: ${blockers} item(s) above need your approval.
+
+Your dotfiles were NOT applied, on purpose. The AeroSpace keybindings all sit
+on Caps Lock, which emits nothing until Karabiner is running — so applying now
+would hand you a window manager that responds to no key at all.
+
+Grant the items above, then run this script again. It is idempotent, and it
+will pick up where it left off.
+────────────────────────────────────────────────────────────────────────────
+EOF
+    exit 1
+  fi
+
+  echo "  All macOS permissions granted."
+
+  # A second Caps Lock remap here silently fights Karabiner, and is the usual
+  # cause of "Karabiner isn't working".
+  if defaults -currentHost read -g com.apple.keyboard.modifiermapping >/dev/null 2>&1; then
+    echo "  WARN: System Settings > Keyboard > Modifier Keys has a custom mapping."
+    echo "        If Caps Lock misbehaves, reset it to 'Caps Lock' and let"
+    echo "        Karabiner own the remap. See KEYBINDINGS.md."
+  fi
 }
 
 dry_run_manifest() {
@@ -212,9 +295,9 @@ print_dry_run_plan() {
   fi
 
   if [ -d "${HOME}/.local/share/chezmoi/.git" ]; then
-    echo "  chezmoi update"
+    echo "  chezmoi git -- pull --ff-only   (fetch source only; apply comes last)"
   else
-    echo "  chezmoi init --apply ${REPO}"
+    echo "  chezmoi init ${REPO}            (fetch source only; apply comes last)"
   fi
 
   echo
@@ -228,7 +311,10 @@ print_dry_run_plan() {
     macos)
       echo "  brew bundle --file=${source_dir}/pkg/macos/Brewfile"
       echo "  npm install -g @devcontainers/cli (when npm is available)"
-      echo "  launch Karabiner-Elements once and print its driver-approval steps"
+      echo "  launch Karabiner-Elements and AeroSpace to raise their permission prompts"
+      echo "  PREFLIGHT GATE: abort unless the Karabiner driver extension, Input"
+      echo "    Monitoring, and AeroSpace Accessibility are all granted"
+      echo "  retire any unmanaged ~/.config/ghostty/config"
       ;;
     arch)
       dry_run_manifest "shelly install --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
@@ -250,6 +336,10 @@ print_dry_run_plan() {
       echo "  skip host package manifests; the Dockerfile owns container packages"
       ;;
   esac
+
+  echo
+  echo "Finally:"
+  echo "  chezmoi apply"
 }
 
 OS="$(uname -s)"
@@ -373,13 +463,17 @@ if [ ! -f ~/.config/chezmoi/key.txt ]; then
   fi
 fi
 
-# Init + apply
+# Fetch the source WITHOUT applying it. Packages are installed first, so that
+# configuration never lands on a machine that cannot yet honour it — on macOS the
+# keybindings are useless (and confusing) until Karabiner and AeroSpace hold their
+# permissions. The single `chezmoi apply` happens at the very end.
 if [ -d ~/.local/share/chezmoi/.git ]; then
-  echo "Updating dotfiles..."
-  chezmoi update
+  echo "Updating dotfiles source..."
+  chezmoi git -- pull --ff-only || \
+    echo "WARN: could not fast-forward the source; using the local copy as-is."
 else
-  echo "Initializing dotfiles..."
-  chezmoi init --apply "${REPO}"
+  echo "Fetching dotfiles source..."
+  chezmoi init "${REPO}"
 fi
 
 # Install packages (skip for containers — Dockerfile handles it)
@@ -391,10 +485,6 @@ if [ "${CHEZMOI_ROLE}" = "macos" ]; then
     echo "Installing npm globals..."
     npm install -g @devcontainers/cli 2>/dev/null || sudo npm install -g @devcontainers/cli
   fi
-  # Runs after brew bundle: the cask must exist before the app can be launched.
-  # chezmoi has already written ~/.config/karabiner/karabiner.json above, so
-  # Karabiner picks up the Caps Lock rule on its very first launch.
-  configure_karabiner
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing Arch host packages..."
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
@@ -444,6 +534,39 @@ elif [ "${CHEZMOI_ROLE}" = "fedora" ]; then
   fi
 fi
 
+# macOS: the packages are installed, so their permission prompts can now be
+# raised. Stop here if anything is still unapproved — see preflight_macos().
+if [ "${CHEZMOI_ROLE}" = "macos" ]; then
+  prompt_macos_permissions
+  preflight_macos
+fi
+
+echo "Applying dotfiles..."
+chezmoi apply
+
+# The pre-chezmoi Ghostty config. Ghostty reads both `config` and `config.ghostty`
+# and merges them, so a stale unmanaged `config` silently contributes settings
+# chezmoi cannot see. Retire it once, keeping a copy.
+if [ "${CHEZMOI_ROLE}" = "macos" ] && [ -f "${HOME}/.config/ghostty/config" ]; then
+  echo "Retiring the unmanaged ~/.config/ghostty/config (backed up alongside it)..."
+  mv "${HOME}/.config/ghostty/config" "${HOME}/.config/ghostty/config.pre-chezmoi.bak"
+fi
+
 echo ""
 echo "Done! Restart your shell or run: exec zsh"
 echo "(First zsh launch clones antidote + plugins — give it a few seconds.)"
+
+if [ "${CHEZMOI_ROLE}" = "macos" ]; then
+  cat <<'EOF'
+
+Two things do not take effect until you act:
+  - Restart Ghostty            (to pick up the freed Cmd keys)
+  - Log out and back in        (screenshot shortcuts: Ctrl+Shift+1/2/3)
+
+Then sanity-check the keyboard:
+  Cmd+T      -> a herdr tab, NOT a Ghostty tab
+  Caps+H/L   -> move window focus
+  Caps+1..9  -> switch workspace
+  Alt+B      -> readline word-motion in the shell
+EOF
+fi

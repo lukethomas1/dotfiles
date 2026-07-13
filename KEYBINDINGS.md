@@ -137,17 +137,37 @@ situations where the OS claims a Cmd key.
 
 ## Bootstrap ordering (macOS)
 
-`bootstrap.sh` applies dotfiles *before* it runs `brew bundle`. That order is
-fine, but it means there is a window in which `aerospace.toml` is on disk while
-Karabiner is not yet installed — and every AeroSpace binding is on `alt-cmd-*`,
-which nothing emits until Karabiner is remapping Caps Lock.
+**If these configs are applied to a Mac without Karabiner running, the window
+manager answers no key at all.** Every AeroSpace binding is on `alt-cmd-*`, and
+nothing emits that chord until Karabiner is remapping Caps Lock. That is the
+expected failure, not a bug — but it is a miserable state to land in, because
+nothing about it points at the cause.
 
-So `configure_karabiner()` runs **after** `brew bundle`, launches the app once to
-raise the DriverKit approval prompt, and prints the manual steps. The driver
-cannot be approved from a script.
+`bootstrap.sh` is therefore ordered to make it unreachable:
 
-**If you ever apply these configs to a Mac without Karabiner, the window manager
-will answer no key at all.** That is the expected failure, not a bug.
+    fetch source (chezmoi init, NO apply)
+      -> install packages (brew bundle: Karabiner, AeroSpace, …)
+      -> launch Karabiner + AeroSpace to raise their permission prompts
+      -> PREFLIGHT GATE  ── aborts here if anything is unapproved
+      -> chezmoi apply
+
+Configuration is never written to a machine that cannot yet honour it. The gate
+(`preflight_macos()`) is a hard stop, not a warning, and checks:
+
+| Check | How |
+| --- | --- |
+| Karabiner installed | `/Applications/Karabiner-Elements.app` exists |
+| Driver extension approved | `systemextensionsctl list` reports `activated enabled` (an unapproved one reports `activated waiting for user`) |
+| Input Monitoring granted | `karabiner_grabber` is running — it cannot claim the keyboard without it |
+| AeroSpace Accessibility granted | `aerospace list-monitors` succeeds; the CLI can only reach a server that has the grant |
+
+None of these can be approved from a script. On failure the script prints the
+exact System Settings path for each and exits non-zero. Grant them and re-run —
+bootstrap is idempotent and picks up where it left off.
+
+It also warns if System Settings → Keyboard → Modifier Keys holds a custom
+mapping: a second Caps Lock remap there silently fights Karabiner, and is the
+usual cause of "Karabiner isn't working".
 
 Karabiner may rewrite `~/.config/karabiner/karabiner.json` (reformatting it, or
 adding fields on version upgrades), which will show up as chezmoi drift. Re-add

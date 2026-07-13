@@ -41,23 +41,34 @@ Expect 3 prompts:
 
 Then wait for `brew bundle` (longest phase — installs aerospace, ghostty, nvim, etc.)
 
-## 2. Post-bootstrap manual steps
+## 2. Bootstrap will stop and ask for permissions
 
-- **Karabiner-Elements driver** (do this first — nothing else works without it):
-  bootstrap installs and launches it, but its driver needs your approval.
-  1. System Settings → General → Login Items & Extensions → **Driver Extensions** →
-     enable `Karabiner-DriverKit-VirtualHIDDevice`
-  2. System Settings → Privacy & Security → **Input Monitoring** → enable
-     `karabiner_grabber` and `Karabiner-Elements`
-  3. Restart if prompted.
+Three macOS permissions cannot be granted from a script, and the keybindings are
+useless without them. So bootstrap installs the packages, raises the prompts, and
+then **stops before applying your dotfiles**, listing exactly what to approve:
 
-  Karabiner is what makes Caps Lock the window-manager modifier (it emits
-  Alt+Cmd). **Until it is approved, Caps Lock does nothing and AeroSpace responds
-  to no keybinding at all** — the Mac will feel broken. Leave System Settings →
-  Keyboard → Modifier Keys at its default; a second remap there is the usual
-  cause of "Karabiner isn't working". See `KEYBINDINGS.md`.
-- **Aerospace accessibility**: System Settings → Privacy & Security → Accessibility → enable AeroSpace
+1. System Settings → General → **Login Items & Extensions** → Driver Extensions →
+   enable `Karabiner-DriverKit-VirtualHIDDevice`
+2. System Settings → Privacy & Security → **Input Monitoring** → enable
+   `karabiner_grabber` and `Karabiner-Elements`
+3. System Settings → Privacy & Security → **Accessibility** → enable `AeroSpace`
+
+Restart if macOS asks. **Then re-run `bootstrap.sh`** — it is idempotent and will
+pick up where it left off, applying the dotfiles once the permissions are in place.
+
+This stop is deliberate. Caps Lock is the window-manager modifier, and Karabiner
+is what makes it emit Alt+Cmd. Applying the configs before Karabiner is running
+would leave you with a window manager that responds to no key at all, with
+nothing to point at the cause. See `KEYBINDINGS.md`.
+
+Leave System Settings → Keyboard → Modifier Keys at its default (Caps Lock = Caps
+Lock). A second remap there fights Karabiner and is the usual cause of "Karabiner
+isn't working" — bootstrap warns if it finds one.
+
+## 3. Other post-bootstrap manual steps
+
 - **Ghostty Gatekeeper**: first launch → System Settings → Privacy & Security → Open Anyway
+- **Restart Ghostty** so it picks up the freed Cmd keys.
 - **Log out and back in** — the screenshot shortcuts (Ctrl+Shift+1/2/3, matching
   Niri) only take effect after a fresh login.
 - **Default shell**: bootstrap runs `chsh -s /bin/zsh` automatically. To do it
@@ -76,7 +87,7 @@ Then wait for `brew bundle` (longest phase — installs aerospace, ghostty, nvim
 Cmd is inside the Caps chord, so verify these three by hand after any macOS
 update: `Caps+Tab` (vs the Dock's app switcher), `Caps+Q`, and `Cmd+T`.
 
-## 3. Clone the Nalej sandbox repo
+## 4. Clone the Nalej sandbox repo
 
 Find your GitLab username: `https://gitlab-internal.nalej.io` → avatar → your @handle.
 
@@ -100,7 +111,7 @@ pbcopy < ~/.ssh/id_ed25519.pub
 git clone git@gitlab-internal.nalej.io:swat-devops-sdo/platform/sandbox.git
 ```
 
-## 4. Run the sandbox devcontainer
+## 5. Run the sandbox devcontainer
 
 Install tools (already in your Brewfile but listing in case):
 ```bash
