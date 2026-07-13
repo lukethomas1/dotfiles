@@ -52,15 +52,36 @@ dry_run_source_dir() {
 
 KARABINER_CLI="/Library/Application Support/org.pqrs/Karabiner-Elements/bin/karabiner_cli"
 
-# Are Karabiner's background services alive?
+# The socket directory Karabiner's PRIVILEGED root daemon creates on startup.
+# Its existence is the one honest proof that the daemon actually ran.
+KARABINER_ROOTONLY="/Library/Application Support/org.pqrs/tmp/rootonly"
+
+# Is Karabiner's privileged daemon alive?
 #
-# Deliberately matched on the org.pqrs install prefix rather than a process name.
-# The names churn between major versions — v13/v14 ran a `karabiner_grabber`
-# binary, which 16.x replaced with a root "Karabiner-Core-Service" — and a check
-# pinned to a name that no longer exists fails closed, blocking a bootstrap whose
-# permissions are in fact perfectly fine.
-karabiner_running() {
-  pgrep -f 'org\.pqrs' >/dev/null 2>&1
+# Check the daemon, not "some Karabiner process". Karabiner runs unprivileged
+# agents (karabiner_console_user_server, Karabiner-Core-Service) that start
+# happily even when the privileged daemon is blocked — so a naive `pgrep org.pqrs`
+# reports a healthy Karabiner that is in fact doing nothing at all, sitting in a
+# retry loop logging `core_service_daemon_client connect_failed`. Without the
+# daemon, karabiner.json is never loaded and Caps Lock is never remapped.
+#
+# The daemons are registered through SMAppService and need "Allow in the
+# Background" — a DIFFERENT approval from the driver extension, in a different
+# System Settings list. Granting one does not grant the other.
+#
+# Probing the socket directory rather than a process name also survives the
+# renames between major versions (v13/v14's `karabiner_grabber` became 16.x's
+# `Karabiner-Core-Service`).
+karabiner_daemon_running() {
+  [ -d "${KARABINER_ROOTONLY}" ]
+}
+
+# Is OUR profile actually loaded? If the daemon never came up, Karabiner falls
+# back to its built-in profile — confusingly named "Default profile" — rather
+# than the "Default" profile defined in dot_config/karabiner/karabiner.json.
+karabiner_profile_loaded() {
+  [ -x "${KARABINER_CLI}" ] || return 0  # nothing to check against
+  [ "$("${KARABINER_CLI}" --show-current-profile-name 2>/dev/null)" = "Default" ]
 }
 
 # Launch the apps whose permissions must be granted by hand. Launching is what
@@ -69,7 +90,7 @@ karabiner_running() {
 prompt_macos_permissions() {
   local launched=false
 
-  if [ -d "/Applications/Karabiner-Elements.app" ] && ! karabiner_running; then
+  if [ -d "/Applications/Karabiner-Elements.app" ] && ! karabiner_daemon_running; then
     echo "Launching Karabiner-Elements (first run requests driver approval)..."
     open -ga "Karabiner-Elements" || true
     launched=true
@@ -124,35 +145,37 @@ EOF
 EOF
     fi
 
-    # Karabiner's background services must be running to claim the keyboard.
-    #
-    # Note: do NOT go looking for Karabiner in System Settings > Input Monitoring.
-    # It usually is not listed there at all — granting Accessibility covers input
-    # monitoring for it, per pqrs.org's own installation guide. Chasing that
-    # missing entry is a dead end.
-    if ! karabiner_running; then
+    # The privileged daemon is the component that actually claims the keyboard.
+    # Karabiner's unprivileged agents run fine without it and look healthy, so
+    # this must be checked explicitly — see karabiner_daemon_running().
+    if ! karabiner_daemon_running; then
       blockers=$((blockers + 1))
       cat <<'EOF'
 
-  [ ] Karabiner's background services are not running.
+  [ ] Karabiner's privileged daemon is not running, so Caps Lock is NOT remapped
+      and karabiner.json is never loaded. (Karabiner may still look fine in the
+      menu bar — its unprivileged agents start regardless.)
       Fix: System Settings > General > Login Items & Extensions
-             Allow background items for "Karabiner-Elements".
-           System Settings > Privacy & Security > Accessibility
-             Enable "Karabiner-Elements". (This also covers Input Monitoring —
-             Karabiner will not appear in the Input Monitoring list, and does
-             not need to.)
-           Then launch Karabiner-Elements.
+             Scroll to "Allow in the Background" and enable the pqrs.org /
+             Karabiner-Elements entries.
+           This is a SEPARATE approval from the driver extension above.
+           If nothing is listed, quit and relaunch Karabiner-Elements to
+           re-register the daemons, then look again.
 EOF
-    elif [ -x "${KARABINER_CLI}" ] && \
-         ! "${KARABINER_CLI}" --show-current-profile-name >/dev/null 2>&1; then
+    elif ! karabiner_profile_loaded; then
       blockers=$((blockers + 1))
       cat <<'EOF'
 
-  [ ] Karabiner is running but not responding to karabiner_cli.
+  [ ] Karabiner is running but has not loaded our profile — it fell back to its
+      built-in one, so Caps Lock is not remapped.
       Fix: quit and relaunch Karabiner-Elements. If it persists, restart.
 EOF
     fi
   fi
+
+  # Note: do NOT go hunting for Karabiner in System Settings > Privacy & Security
+  # > Input Monitoring. It is normally not listed there at all — granting
+  # Accessibility covers input monitoring for it. That search is a dead end.
 
   if [ ! -d "/Applications/AeroSpace.app" ]; then
     blockers=$((blockers + 1))
