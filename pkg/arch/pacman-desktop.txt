@@ -15,7 +15,12 @@ github-cli
 git
 gnupg
 ghostty
+# Intentional host exception: remote homelab management. `incus` provides the
+# client and also packages a local daemon, which remains inactive unless
+# explicitly initialized or enabled.
+incus
 keychain
+kubectl
 lazygit
 neovim
 niri
@@ -25,6 +30,7 @@ openssh
 ripgrep
 shelly
 starship
+talosctl
 ttf-jetbrains-mono
 uv
 wl-clipboard
