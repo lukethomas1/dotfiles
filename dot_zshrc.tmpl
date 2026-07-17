@@ -137,9 +137,9 @@ command -v fzf      >/dev/null && source <(fzf --zsh)
 # ---------------------------------------------------------------------------
 ls() {
   if [[ " $* " == *" -h "* || " $* " == *" --help "* ]]; then
-    eza "$@"
+    eza --classify=never "$@"
   else
     eza --long --all --header --group-directories-first \
-        --time-style=relative --git --icons --classify "$@"
+        --time-style=relative --git --icons --classify=never "$@"
   fi
 }
