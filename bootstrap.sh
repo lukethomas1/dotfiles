@@ -84,7 +84,7 @@ print_dry_run_plan() {
       echo "  ensure /bin/zsh is the login shell"
       ;;
     arch)
-      echo "  shelly upgrade --no-confirm"
+      echo "  shelly upgrade --no-confirm (only if confirmed)"
       echo "  shelly install --no-confirm chezmoi age"
       ;;
     fedora)
@@ -191,10 +191,18 @@ case "$OS" in
   Linux)
     if [ -f /etc/arch-release ]; then
       # Arch / CachyOS
-      # Arch-based distributions must be upgraded as a complete transaction.
-      # Do this once, before installing bootstrap and host packages, so later
-      # installs do not trigger another full upgrade or reinstall every target.
-      shelly upgrade --no-confirm
+      # Full Arch upgrades are intentionally opt-in. Package installation is
+      # still safe without one, and this keeps routine bootstrap runs focused
+      # on reconciling the declared host configuration.
+      read -r -p "Run a full CachyOS system upgrade now? [y/N] " upgrade_response || true
+      case "${upgrade_response:-}" in
+        y|Y|yes|YES)
+          shelly upgrade --no-confirm
+          ;;
+        *)
+          echo "Skipping full system upgrade."
+          ;;
+      esac
       shelly install --no-confirm chezmoi age
       export CHEZMOI_ROLE="arch"
     elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
