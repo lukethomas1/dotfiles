@@ -2,10 +2,10 @@
 // Megatron's four-monitor layout. Keep this machine-specific: other hosts
 // should let Niri choose their connected displays automatically.
 output "DP-1" {
-    mode "2560x1440@143.973"
+    mode "1920x1080@143.980"
     scale 1
     transform "90"
-    // Left 27" LG portrait display. Its 1440px logical width offsets the
+    // Left LG portrait display. Its 1080px logical width offsets the
     // remaining outputs so every configured position stays non-negative.
     position x=0 y=1000
 }
@@ -13,21 +13,21 @@ output "DP-1" {
 output "DP-3" {
     mode "3840x2160@143.998"
     scale 1
-    position x=1440 y=1440
+    position x=1080 y=1440
 }
 
 output "DP-2" {
     mode "2560x1440@143.973"
     scale 1
     transform "270"
-    position x=5280 y=1000
+    position x=4920 y=1000
 }
 
 output "HDMI-A-1" {
     mode "2560x1440@144.000"
     scale 1
     // Center the 2560px upper display above the 3840px lower display.
-    position x=2080 y=0
+    position x=1720 y=0
 }
 {{- else }}
 // No machine-specific display layout is configured for this host.
