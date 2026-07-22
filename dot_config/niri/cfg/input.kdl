@@ -23,8 +23,8 @@ input {
     }
 
     mouse {
-        // accel-profile "flat"
-        // accel-speed 0.0
+        accel-speed 0.0 // Ranges from -1.0 (very slow) to 1.0 (very fast)
+        accel-profile "flat" // Use "adaptive" for standard OS acceleration
     }
 
     // Keep focus under explicit keyboard or click control; moving the pointer
