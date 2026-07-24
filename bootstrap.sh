@@ -65,9 +65,76 @@ dry_run_manifest() {
     done
 }
 
+install_arch_1password_cli() {
+  local source_dir="$1"
+  local version_file="${source_dir}/pkg/arch/1password-cli.version"
+  local version
+  local arch
+  local target="/usr/local/bin/op"
+
+  if [ ! -f "${version_file}" ]; then
+    echo "ERROR: 1Password CLI version file not found: ${version_file}" >&2
+    exit 1
+  fi
+
+  version="$(tr -d '[:space:]' < "${version_file}")"
+  case "${version}" in
+    [0-9]*.[0-9]*.[0-9]*)
+      ;;
+    *)
+      echo "ERROR: Invalid 1Password CLI version: ${version}" >&2
+      exit 1
+      ;;
+  esac
+
+  case "$(uname -m)" in
+    x86_64)
+      arch="amd64"
+      ;;
+    aarch64)
+      arch="arm64"
+      ;;
+    *)
+      echo "ERROR: Unsupported architecture for 1Password CLI: $(uname -m)" >&2
+      exit 1
+      ;;
+  esac
+
+  if [ -x "${target}" ] && [ "$("${target}" --version)" = "${version}" ]; then
+    echo "1Password CLI ${version} is already installed."
+    return
+  fi
+
+  echo "Installing 1Password CLI ${version}..."
+  (
+    local_temp_dir="$(mktemp -d)"
+    trap 'rm -rf "${local_temp_dir}"' EXIT
+
+    curl --fail --location --silent --show-error \
+      "https://cache.agilebits.com/dist/1P/op2/pkg/v${version}/op_linux_${arch}_v${version}.zip" \
+      --output "${local_temp_dir}/op.zip"
+    bsdtar -xf "${local_temp_dir}/op.zip" -C "${local_temp_dir}"
+    curl --fail --location --silent --show-error \
+      https://downloads.1password.com/linux/keys/1password.asc | \
+      gpg --batch --import
+    gpg --batch --verify "${local_temp_dir}/op.sig" "${local_temp_dir}/op"
+
+    sudo groupadd -f onepassword-cli
+    sudo install -Dm755 "${local_temp_dir}/op" "${target}"
+    sudo chgrp onepassword-cli "${target}"
+    sudo chmod g+s "${target}"
+  )
+
+  if [ "$("${target}" --version)" != "${version}" ]; then
+    echo "ERROR: 1Password CLI verification failed after installation." >&2
+    exit 1
+  fi
+}
+
 print_dry_run_plan() {
   local role="$1"
   local source_dir
+  local onepassword_cli_version
 
   source_dir="$(dry_run_source_dir)"
 
@@ -127,6 +194,10 @@ print_dry_run_plan() {
       dry_run_manifest "shelly install --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
       echo "  import the 1Password signing key when 1password is declared"
       dry_run_manifest "shelly aur install" "${source_dir}/pkg/arch/aur-desktop.txt"
+      if [ -f "${source_dir}/pkg/arch/1password-cli.version" ]; then
+        onepassword_cli_version="$(tr -d '[:space:]' < "${source_dir}/pkg/arch/1password-cli.version")"
+        echo "  install signed 1Password CLI ${onepassword_cli_version} in /usr/local/bin/op"
+      fi
       echo "  flatpak remote-add --if-not-exists --user flathub <Flathub remote>"
       dry_run_manifest "flatpak install --user --noninteractive flathub" "${source_dir}/pkg/arch/flatpak-desktop.txt"
       echo "  install Firefox 1Password policy in /etc/firefox/policies/policies.json"
@@ -293,6 +364,8 @@ elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   fi
   sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
     "$(chezmoi source-path)/pkg/arch/aur-desktop.txt" | xargs shelly aur install
+
+  install_arch_1password_cli "$(chezmoi source-path)"
 
   echo "Installing desktop applications from Flathub..."
   flatpak remote-add --if-not-exists --user flathub \

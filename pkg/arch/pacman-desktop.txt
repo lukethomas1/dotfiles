@@ -4,6 +4,8 @@ age
 atuin
 bat
 btop
+# Intentional desktop exception: e-book library management.
+calibre
 chezmoi
 eza
 fastfetch
@@ -31,6 +33,8 @@ ripgrep
 shelly
 starship
 talosctl
+# Intentional host exception: secure remote access to the homelab.
+tailscale
 ttf-jetbrains-mono
 uv
 wl-clipboard
