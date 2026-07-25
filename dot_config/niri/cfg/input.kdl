@@ -23,7 +23,7 @@ input {
     }
 
     mouse {
-        accel-speed -0.3 // Ranges from -1.0 (very slow) to 1.0 (very fast)
+        accel-speed 0.0 // Ranges from -1.0 (very slow) to 1.0 (very fast)
         accel-profile "flat" // Use "adaptive" for standard OS acceleration
     }
 
