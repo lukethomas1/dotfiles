@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  This repository is a Chezmoi source for a reproducible personal development
+  environment. It supports macos, fedora, arch, container, and
+  debian-dev-headless roles.
+
+  Keep host configuration small, intentional, idempotent, and safe to apply
+  repeatedly. Role and distro data originate in .chezmoi.toml.tmpl and must
+  agree with bootstrap entrypoints and template conditions.
+
+  The debian-dev-headless role is a durable, secretless Debian 13 developer
+  console. Homelab owns its account, mounts, network, DNS, SSH daemon, APT
+  trust, and external access. This repository owns its declared developer
+  packages, unprivileged tools, and user configuration.
+
+  Never commit plaintext secrets, private keys, credentials, or the Chezmoi
+  Age identity. The container and debian-dev-headless roles must not deploy
+  encrypted personal secrets or SSH configuration.
+
+  Do not run chezmoi apply against the real home, install packages, or make
+  system changes during validation. Before bootstrap or manifest changes,
+  run Bash syntax checks and git diff --check.
+
+rules:
+  proposal:
+    - State explicit non-goals and cross-repository ownership boundaries.
+    - Identify compatibility or migration effects for every existing profile.
+  specs:
+    - Use SHALL or SHALL NOT for normative requirements.
+    - Include positive and negative scenarios for safety-sensitive behavior.
+  design:
+    - Record privilege boundaries, sources of truth, failure behavior, and rollback.
+    - Explain any intentional tradeoff between exact pinning and rolling security updates.
+  tasks:
+    - Keep tasks ordered so validation precedes mutation.
+    - Include isolated rendering, negative-boundary, idempotence, and strict OpenSpec validation.
