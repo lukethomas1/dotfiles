@@ -10,7 +10,7 @@
 {{-     $distro = "fedora" -}}
 {{-   else if eq $role "macos" -}}
 {{-     $distro = "macos" -}}
-{{-   else if eq $role "container" -}}
+{{-   else if or (eq $role "container") (eq $role "debian-dev-headless") -}}
 {{-     $distro = "debian" -}}
 {{-   end -}}
 {{- /* Auto-detect macOS */ -}}
@@ -19,11 +19,11 @@
 {{-   $distro = "macos" -}}
 {{- /* Prompt on Linux */ -}}
 {{- else -}}
-{{-   $role = promptStringOnce . "role" "Role (arch/container/fedora)" -}}
+{{-   $role = promptStringOnce . "role" "Role (arch/container/debian-dev-headless/fedora)" -}}
 {{-   $distro = promptStringOnce . "distro" "Distro (arch/debian/fedora)" -}}
 {{- end -}}
 
-{{- if eq $role "container" -}}
+{{- if or (eq $role "container") (eq $role "debian-dev-headless") -}}
 {{-   $distro = "debian" -}}
 {{- end -}}
 

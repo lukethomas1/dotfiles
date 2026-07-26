@@ -12,6 +12,9 @@ intentional, and safe to apply repeatedly.
 - `arch`: CachyOS Niri/Noctalia host profile, installed through Shelly.
 - `container`: Debian development-container profile. Never deploy secrets or
   SSH configuration to this profile.
+- `debian-dev-headless`: durable Debian 13 developer-console profile. It owns
+  secretless developer software and user configuration; homelab owns account,
+  mount, network, DNS, SSH daemon, and trust configuration.
 
 Chezmoi role and distro data are set in `.chezmoi.toml.tmpl`. Keep role-specific
 template conditions consistent with bootstrap's exported `CHEZMOI_ROLE`.
@@ -35,7 +38,8 @@ excluded from Chezmoi by `.chezmoiignore.tmpl`.
 ## Secrets and safety
 
 - Never commit decrypted secrets, private keys, or the Chezmoi Age identity.
-- Keep encrypted files encrypted and retain the container profile exclusions.
+- Keep encrypted files encrypted and retain the container and
+  `debian-dev-headless` profile exclusions.
 - Do not run `chezmoi apply`, install packages, or make system changes unless
   the user explicitly asks.
 - Before changing bootstrap or package manifests, run `bash -n bootstrap.sh`,

@@ -1,0 +1,33 @@
+[settings]
+lockfile = true
+locked = true
+paranoid = true
+lockfile_platforms = ["linux-x64"]
+
+[tools]
+bun = "1.3.14"
+node = "22.23.1"
+go = "1.26.5"
+python = "3.14.6"
+uv = "0.11.32"
+"aqua:pulumi/pulumi" = "3.254.0"
+"aqua:siderolabs/talos" = "1.13.7"
+"aqua:kubernetes/kubernetes/kubectl" = "1.36.3"
+"aqua:helm/helm" = "4.2.3"
+"aqua:kubernetes-sigs/kustomize" = "5.8.1"
+"aqua:fluxcd/flux2" = "2.9.3"
+"aqua:cilium/cilium-cli" = "0.19.6"
+"aqua:getsops/sops" = "3.13.3"
+"aqua:dagger/dagger" = "0.21.7"
+"aqua:sigstore/cosign" = "3.1.2"
+"aqua:anchore/syft" = "1.49.0"
+"aqua:anchore/grype" = "0.116.0"
+"aqua:aquasecurity/trivy" = "0.72.0"
+"aqua:gitleaks/gitleaks" = "8.30.1"
+"aqua:cli/cli" = "2.96.0"
+"aqua:jesseduffield/lazygit" = "0.63.1"
+"aqua:dandavison/delta" = "0.19.2"
+"aqua:starship/starship" = "1.26.0"
+"aqua:atuinsh/atuin" = "18.17.1"
+"aqua:eza-community/eza" = "0.23.5"
+"aqua:ajeetdsouza/zoxide" = "0.10.0"

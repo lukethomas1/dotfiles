@@ -27,6 +27,15 @@ typeset -U path                      # dedupe PATH entries
 path=("$HOME/.local/bin" $path)
 export PATH
 
+{{ if eq .role "debian-dev-headless" -}}
+# The durable headless role owns developer runtimes through its locked mise
+# manifest. Node is compatibility runtime only; Bun owns JavaScript packages.
+if [[ -x "$HOME/.local/bin/mise" ]]; then
+  eval "$("$HOME/.local/bin/mise" activate zsh)"
+fi
+command -v direnv >/dev/null && eval "$(direnv hook zsh)"
+{{ end -}}
+
 # ---------------------------------------------------------------------------
 # Homebrew / Linuxbrew — host only (no-op in containers or where brew absent).
 # Needed on Fedora COSMIC Atomic / other immutable distros where CLI tools
@@ -126,7 +135,7 @@ fi
 command -v atuin    >/dev/null && eval "$(atuin init zsh)"       # binds ctrl-r + up
 command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v zoxide   >/dev/null && eval "$(zoxide init zsh)"
-{{ if ne .role "container" -}}
+{{ if and (ne .role "container") (ne .role "debian-dev-headless") -}}
 export CARAPACE_BRIDGES='zsh,bash,inshellisense'
 command -v carapace >/dev/null && source <(carapace _carapace zsh)
 {{ end -}}

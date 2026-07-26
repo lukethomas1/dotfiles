@@ -10,14 +10,16 @@ archive/**
 assets
 assets/**
 
-# Container: full dev experience but no secrets or SSH
-{{ if eq .role "container" }}
+# Secretless Debian roles: full user configuration but no personal secret,
+# authentication, or SSH material. Root trust remains owned by homelab.
+{{ if or (eq .role "container") (eq .role "debian-dev-headless") }}
 .ssh/**
 .config/secrets.env
+.config/chezmoi/key.txt
 {{ end }}
 
 # Shared ignores for non-container roles
-{{ if ne .role "container" }}
+{{ if and (ne .role "container") (ne .role "debian-dev-headless") }}
 .config/nvim/lua/plugins/disabled.lua
 {{ end }}
 

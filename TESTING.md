@@ -61,6 +61,28 @@ Run the same sequence with `CHEZMOI_ROLE=macos` on a Mac. This catches invalid
 templates, role-specific ignores, and non-idempotent file output while keeping
 the real home directory untouched.
 
+The durable headless role has a single non-mutating harness that also checks
+the signed snapshot, locked mise/vendor identities, Bun-only JavaScript
+ownership, full tool inventory, engine absence, and secret exclusions:
+
+```zsh
+./scripts/test-debian-dev-headless.sh
+./scripts/debian-dev-headless-install.sh --dry-run
+```
+
+On a clean Debian 13 console, run the authenticated package phase as root, then
+the tool/configuration phase as the unprivileged console user:
+
+```bash
+./scripts/debian-dev-headless-install.sh --system
+./scripts/debian-dev-headless-install.sh --user
+CHEZMOI_ROLE=debian-dev-headless chezmoi apply
+```
+
+The harness renders only into a temporary destination. It does not install
+packages, download artifacts, run `chezmoi apply` against the real home, or
+enroll any account.
+
 ## Continuous testing plan
 
 1. Add a GitHub Actions pull-request workflow with a `macos-latest` job and a
