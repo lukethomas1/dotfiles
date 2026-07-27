@@ -62,6 +62,11 @@ state identities. The system phase rejects a stale or malformed attestation,
 runs `apt-get update`, verifies a candidate for every package, then installs
 the package-name manifest additively.
 
+Fixture-root attestation checks use a dedicated
+`--verify-apt-attestation <absolute-root>` mode that never invokes APT. The
+live `--system` phase rejects fixture root, alternate OS-release, and alternate
+role-manifest overrides and always validates the real host before mutation.
+
 The attestation is a narrow cross-repository interface: homelab remains free to
 organize source files but must prove that the currently active source and
 keyring state still matches its policy. Parsing origin policy independently in
@@ -79,6 +84,12 @@ temporary files, and GPG `VALIDSIG` status must identify that fingerprint as
 the actual signer or primary key. The authenticated `op` payload also has a
 committed SHA-256 identity.
 
+The durable console matches the homelab repository's protected client
+versions: Pulumi `3.253.0`, Talos `1.13.6`, kubectl `1.36.2`, and Cilium CLI
+`0.19.2`. Cilium CLI is distinct from the cluster's Cilium `1.19.6`
+chart/application version. Upgrading these clients requires a coordinated
+homelab compatibility change rather than an independent dotfiles bump.
+
 Antidote will use commit `4913257e0ae3fee2a77e7189e526fe55b6ff9536`
 from a managed `.config/zsh/antidote.version`. Plugin declarations will use
 Antidote's `pin:<SHA>` syntax with these known-working commits:
@@ -92,7 +103,10 @@ Antidote's `pin:<SHA>` syntax with these known-working commits:
 Shell startup compares the local Antidote revision, fetches only when missing
 or mismatched, and degrades with a warning rather than breaking the shell when
 offline. A portable adjacent lock serializes clone, fetch, and checkout so
-concurrent shells cannot nest or corrupt the checkout.
+concurrent shells cannot nest or corrupt the checkout. A missing PID receives
+the normal bounded initialization grace, ownership is accepted only after PID
+publication and readback, and release removes only a lock still owned by the
+current shell.
 
 ### 3. Native manifests replace the duplicate tool catalog
 
@@ -144,7 +158,9 @@ unmanaged root-local file.
 ### 6. Installer modes stay explicit
 
 The dedicated installer retains `--system`, `--user`, `--dry-run`, and
-`--verify-manifests`. The root and user phases reject the wrong effective user.
+`--verify-manifests`, plus a non-mutating
+`--verify-apt-attestation <absolute-root>` mode. The root and user phases
+reject the wrong effective user.
 The user phase prepends and directly verifies the managed local-bin path, uses
 one global temporary-directory trap, rejects links and non-regular managed
 targets, verifies installed payload digests, installs via temporary targets,
@@ -154,6 +170,11 @@ The curl-capable main bootstrap removes its headless execution branch because
 it cannot supply companion manifests or perform the explicit privilege
 handoff. Documentation requires a local checkout, both installer phases,
 role-aware `chezmoi init --source <checkout> --no-tty`, and a separate apply.
+
+Debian compatibility commands use only the fixed package paths
+`/usr/bin/fdfind` and `/usr/bin/batcat`. Correct links are retained, incorrect
+links are atomically repaired, and regular files, directories, or other
+unexpected destination objects are preserved with a fail-closed error.
 
 ### 7. Existing profiles retain ownership
 

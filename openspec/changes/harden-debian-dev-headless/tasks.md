@@ -54,3 +54,12 @@
 - [ ] 7.4 Initialize and apply the role only in the disposable console, verify the exact secretless CLI target set, and document rollback without deleting packages, credentials, instances, or retained volumes.
 - [x] 7.5 Reconcile the homelab developer-console change with rolling Debian trust, the APT attestation, unique Git signing enrollment, and unrestricted reviewed tool ownership.
 - [x] 7.6 Run adversarial deletion, wrong-payload, signer, ZIP, minimal dry-run, Git include, allowlist, and Antidote concurrency tests plus strict OpenSpec validation.
+
+## 8. Adversarial Review Corrections
+
+- [x] 8.1 Align Pulumi, Talos, kubectl, and Cilium CLI declarations and the Linux x64 Mise lock with the exact homelab compatibility gates.
+- [x] 8.2 Add a dedicated non-mutating APT attestation verifier and make live `--system` reject all fixture-root, alternate-platform, and alternate-role inputs before APT execution.
+- [x] 8.3 Make Antidote lock PID publication, initialization grace, and owner-matching release race-safe.
+- [x] 8.4 Reconcile Debian `fd` and `bat` aliases from fixed package paths, atomically repair links, and preserve unexpected destination objects.
+- [x] 8.5 Add negative and concurrency regression tests for tool pins, APT mutation isolation, the lock publication interval, ownership changes, PATH shadowing, and alias collisions.
+- [x] 8.6 Re-run isolated validation, syntax checks, strict OpenSpec validation, diff hygiene, and focused secret scanning without applying to a real console.

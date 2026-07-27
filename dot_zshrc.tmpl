@@ -61,21 +61,37 @@ ANTIDOTE_LOCK_WAIT_SECONDS="${ANTIDOTE_LOCK_WAIT_SECONDS:-0.1}"
 antidote_lock_owned=false
 
 antidote_release_lock() {
+  local owner_pid=""
   if $antidote_lock_owned; then
+    if [[ -f "${ANTIDOTE_LOCK}/pid" && ! -L "${ANTIDOTE_LOCK}/pid" ]]; then
+      IFS= read -r owner_pid <"${ANTIDOTE_LOCK}/pid"
+    fi
+    if [[ "$owner_pid" != "$$" ]]; then
+      print -u2 "WARN: Antidote reconciliation lock ownership changed; preserving it."
+      antidote_lock_owned=false
+      return
+    fi
     command rm -f -- "${ANTIDOTE_LOCK}/pid"
-    rmdir "$ANTIDOTE_LOCK" 2>/dev/null || true
+    if ! rmdir "$ANTIDOTE_LOCK" 2>/dev/null; then
+      print -u2 "WARN: Antidote reconciliation lock contains unexpected state; preserving it."
+    fi
     antidote_lock_owned=false
   fi
 }
 
 antidote_acquire_lock() {
-  local attempts=0 owner_pid=""
+  local attempts=0 owner_pid="" published_pid=""
   while ! mkdir "$ANTIDOTE_LOCK" 2>/dev/null; do
+    owner_pid=""
     if [[ -L "$ANTIDOTE_LOCK" || ! -d "$ANTIDOTE_LOCK" ]]; then
       print -u2 "WARN: Antidote reconciliation lock is unsafe; continuing without plugins."
       return 1
     fi
-    [[ -r "${ANTIDOTE_LOCK}/pid" ]] &&
+    if [[ -L "${ANTIDOTE_LOCK}/pid" ]]; then
+      print -u2 "WARN: Antidote reconciliation lock PID is unsafe; continuing without plugins."
+      return 1
+    fi
+    [[ -f "${ANTIDOTE_LOCK}/pid" && -r "${ANTIDOTE_LOCK}/pid" ]] &&
       IFS= read -r owner_pid <"${ANTIDOTE_LOCK}/pid"
     if [[ "$owner_pid" == <-> ]] && kill -0 "$owner_pid" 2>/dev/null; then
       (( attempts++ ))
@@ -86,13 +102,37 @@ antidote_acquire_lock() {
       sleep "$ANTIDOTE_LOCK_WAIT_SECONDS"
       continue
     fi
+    if [[ ! -e "${ANTIDOTE_LOCK}/pid" ]]; then
+      (( attempts++ ))
+      if (( attempts < ANTIDOTE_LOCK_MAX_ATTEMPTS )); then
+        sleep "$ANTIDOTE_LOCK_WAIT_SECONDS"
+        continue
+      fi
+      if rmdir "$ANTIDOTE_LOCK" 2>/dev/null; then
+        attempts=0
+        continue
+      fi
+      print -u2 "WARN: cannot recover ownerless Antidote reconciliation lock; continuing without plugins."
+      return 1
+    fi
     command rm -f -- "${ANTIDOTE_LOCK}/pid"
     if ! rmdir "$ANTIDOTE_LOCK" 2>/dev/null; then
       print -u2 "WARN: cannot recover stale Antidote reconciliation lock; continuing without plugins."
       return 1
     fi
+    attempts=0
   done
-  print -r -- "$$" >"${ANTIDOTE_LOCK}/pid"
+  if [[ -n "${ANTIDOTE_TEST_LOCK_PUBLISH_DELAY:-}" ]]; then
+    sleep "$ANTIDOTE_TEST_LOCK_PUBLISH_DELAY"
+  fi
+  if ! print -r -- "$$" >"${ANTIDOTE_LOCK}/pid" ||
+     ! IFS= read -r published_pid <"${ANTIDOTE_LOCK}/pid" ||
+     [[ "$published_pid" != "$$" ]]; then
+    command rm -f -- "${ANTIDOTE_LOCK}/pid"
+    rmdir "$ANTIDOTE_LOCK" 2>/dev/null || true
+    print -u2 "WARN: cannot publish Antidote reconciliation lock ownership; continuing without plugins."
+    return 1
+  fi
   antidote_lock_owned=true
 }
 

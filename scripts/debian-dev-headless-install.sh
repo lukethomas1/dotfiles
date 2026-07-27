@@ -3,26 +3,59 @@ set -euo pipefail
 
 usage() {
   printf '%s\n' \
-    'Usage: debian-dev-headless-install.sh --system|--user|--dry-run|--verify-manifests'
+    'Usage: debian-dev-headless-install.sh --system|--user|--dry-run|--verify-manifests|--verify-apt-attestation <absolute-root>'
 }
 
 mode=
+apt_verification_root=
 case "${1:-}" in
   --system) mode=system ;;
   --user) mode=user ;;
   --dry-run) mode=dry-run ;;
   --verify-manifests) mode=verify-manifests ;;
+  --verify-apt-attestation)
+    mode=verify-apt-attestation
+    [ "$#" -eq 2 ] || { usage >&2; exit 2; }
+    case "$2" in
+      /*) apt_verification_root="${2%/}" ;;
+      *) printf 'ERROR: APT verification root must be absolute\n' >&2; exit 2 ;;
+    esac
+    ;;
   --help|-h) usage; exit 0 ;;
   *) usage >&2; exit 2 ;;
 esac
-[ "$#" -le 1 ] || { usage >&2; exit 2; }
+if [ "$mode" != verify-apt-attestation ]; then
+  [ "$#" -le 1 ] || { usage >&2; exit 2; }
+fi
 
 script_dir="${BASH_SOURCE[0]%/*}"
 [ "$script_dir" != "${BASH_SOURCE[0]}" ] || script_dir=.
-source_dir="$(CDPATH= cd -- "${script_dir}/.." && pwd)"
-role_dir="${DEBIAN_DEV_HEADLESS_ROLE_DIR:-${source_dir}/pkg/debian-dev-headless}"
-os_release_file="${DEBIAN_DEV_HEADLESS_OS_RELEASE:-/etc/os-release}"
+source_dir="${DEBIAN_DEV_HEADLESS_SOURCE_DIR:-$(CDPATH= cd -- "${script_dir}/.." && pwd)}"
+if [ "$mode" = system ]; then
+  for fixture_override in \
+    DEBIAN_DEV_HEADLESS_APT_ROOT \
+    DEBIAN_DEV_HEADLESS_OS_RELEASE \
+    DEBIAN_DEV_HEADLESS_ROLE_DIR \
+    DEBIAN_DEV_HEADLESS_SOURCE_DIR; do
+    [ -z "${!fixture_override+x}" ] ||
+      {
+        printf 'ERROR: --system refuses fixture override: %s\n' \
+          "$fixture_override" >&2
+        exit 1
+      }
+  done
+  role_dir="${source_dir}/pkg/debian-dev-headless"
+  os_release_file=/etc/os-release
+elif [ "$mode" = verify-apt-attestation ]; then
+  role_dir="${DEBIAN_DEV_HEADLESS_ROLE_DIR:-${source_dir}/pkg/debian-dev-headless}"
+  os_release_file="${apt_verification_root}/etc/os-release"
+else
+  role_dir="${DEBIAN_DEV_HEADLESS_ROLE_DIR:-${source_dir}/pkg/debian-dev-headless}"
+  os_release_file="${DEBIAN_DEV_HEADLESS_OS_RELEASE:-/etc/os-release}"
+fi
 local_bin="${HOME}/.local/bin"
+debian_fd_target=/usr/bin/fdfind
+debian_bat_target=/usr/bin/batcat
 temp_root=
 staged_path=
 
@@ -483,7 +516,7 @@ verify_apt_trust_attestation() {
   local apt_root trust_file source_file keyring_file owner_mode
   local schema role os_id version_id suites apt_config_sha source_sha keyring_sha
   local actual
-  apt_root="${DEBIAN_DEV_HEADLESS_APT_ROOT:-}"
+  apt_root="$1"
   trust_file="${apt_root}/etc/homelab/developer-console-apt-trust"
   source_file="${apt_root}/etc/apt/sources.list.d/debian.sources"
   keyring_file="${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg"
@@ -555,7 +588,18 @@ if [ "$mode" = verify-manifests ]; then
   exit 0
 fi
 
+if [ "$mode" = system ] && [ "$(id -u)" -ne 0 ]; then
+  die '--system must run as root before the user phase'
+fi
+
 verify_platform
+
+if [ "$mode" = verify-apt-attestation ]; then
+  require_commands find sha256sum sort stat
+  verify_apt_trust_attestation "$apt_verification_root"
+  echo "Debian headless APT trust attestation verified without mutation: ${apt_verification_root:-/}"
+  exit 0
+fi
 
 if [ "$mode" = dry-run ]; then
   echo 'Dry run: no package, download, home, shell, or credential changes will be made.'
@@ -573,11 +617,9 @@ if [ "$mode" = dry-run ]; then
 fi
 
 if [ "$mode" = system ]; then
-  [ "$(id -u)" -eq 0 ] ||
-    die '--system must run as root before the user phase'
   require_commands apt-get apt-cache find sha256sum sort stat
 
-  verify_apt_trust_attestation
+  verify_apt_trust_attestation ""
   apt-get update
 
   packages=()
@@ -862,7 +904,38 @@ for bun_command in openspec wrangler; do
   staged_path=
 done
 
-command -v fdfind >/dev/null && ln -sfn "$(command -v fdfind)" "${local_bin}/fd"
-command -v batcat >/dev/null && ln -sfn "$(command -v batcat)" "${local_bin}/bat"
+reconcile_debian_compatibility_link() {
+  local command_name="$1"
+  local trusted_target="$2"
+  local destination="${local_bin}/${command_name}"
+  local current_target
+
+  [ -f "$trusted_target" ] && [ ! -L "$trusted_target" ] &&
+    [ -x "$trusted_target" ] ||
+    die "trusted Debian compatibility target is missing or unsafe: ${trusted_target}"
+
+  if [ -L "$destination" ]; then
+    current_target="$(readlink "$destination")"
+    [ "$current_target" = "$trusted_target" ] && return
+  elif [ -e "$destination" ]; then
+    die "Debian compatibility target already exists and is not a symlink: ${destination}"
+  fi
+
+  staged_path="${local_bin}/.${command_name}.new.$$"
+  [ ! -e "$staged_path" ] && [ ! -L "$staged_path" ] ||
+    die "staged Debian compatibility target already exists: ${staged_path}"
+  ln -s "$trusted_target" "$staged_path"
+  mv -fT -- "$staged_path" "$destination"
+  staged_path=
+
+  [ -L "$destination" ] &&
+    [ "$(readlink "$destination")" = "$trusted_target" ] &&
+    [ -x "$destination" ] ||
+    die "Debian compatibility link failed post-install verification: ${destination}"
+}
+
+require_commands readlink
+reconcile_debian_compatibility_link fd "$debian_fd_target"
+reconcile_debian_compatibility_link bat "$debian_bat_target"
 
 echo 'debian-dev-headless software reconciliation complete; credentials remain unenrolled'

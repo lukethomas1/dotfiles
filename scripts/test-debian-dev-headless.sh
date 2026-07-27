@@ -109,6 +109,18 @@ assert_unmanaged_prefix() {
 
 bash -n "${source_dir}/bootstrap.sh" "$installer" "$0"
 "$installer" --verify-manifests
+grep -Fqx '"aqua:pulumi/pulumi" = "3.253.0"' \
+  "${role_dir}/mise.toml" ||
+  fail 'Pulumi pin does not match the homelab execution gate'
+grep -Fqx '"aqua:siderolabs/talos" = "1.13.6"' \
+  "${role_dir}/mise.toml" ||
+  fail 'Talos pin does not match the homelab execution gate'
+grep -Fqx '"aqua:kubernetes/kubernetes/kubectl" = "1.36.2"' \
+  "${role_dir}/mise.toml" ||
+  fail 'kubectl pin does not match the homelab execution gate'
+grep -Fqx '"aqua:cilium/cilium-cli" = "0.19.2"' \
+  "${role_dir}/mise.toml" ||
+  fail 'Cilium CLI pin does not match the homelab execution gate'
 
 if rg -n '(^|[[:space:]])sudo([[:space:]]|$)' "$installer" >/dev/null; then
   fail 'the split installer must not depend on sudo'
@@ -375,8 +387,7 @@ expect_failure unsupported-platform 'Debian 13 is required' \
   "$installer" --dry-run
 
 expect_failure system-privilege '--system must run as root' \
-  env HOME="$dry_home" DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --system
+  env HOME="$dry_home" "$installer" --system
 
 fake_system_bin="${test_root}/fake-system-bin"
 mkdir -p "$fake_system_bin"
@@ -408,6 +419,7 @@ mkdir -p \
   "${apt_root}/etc/apt/sources.list.d" \
   "${apt_root}/etc/homelab" \
   "${apt_root}/usr/share/keyrings"
+cp "$debian_os" "${apt_root}/etc/os-release"
 printf '%s\n' \
   'Types: deb' \
   'URIs: https://deb.debian.org/debian' \
@@ -444,16 +456,14 @@ chmod 0644 "${apt_root}/etc/homelab/developer-console-apt-trust"
 
 fake_apt_log="${test_root}/fake-apt.log"
 : >"$fake_apt_log"
-expect_failure missing-candidate 'no APT candidate is available for package: bash' \
-  env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
-  FAKE_APT_LOG="$fake_apt_log" DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  DEBIAN_DEV_HEADLESS_APT_ROOT="$apt_root" \
-  "$installer" --system
-grep -Fqx update "$fake_apt_log" ||
-  fail 'candidate test did not refresh metadata'
-if grep -Fq install "$fake_apt_log"; then
-  fail 'candidate failure invoked bulk package installation'
-fi
+HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
+  FAKE_APT_LOG="$fake_apt_log" \
+  "$installer" --verify-apt-attestation "$apt_root" \
+  >"${test_root}/apt-verifier.out"
+grep -Fq 'verified without mutation' "${test_root}/apt-verifier.out" ||
+  fail 'dedicated APT verifier did not report success'
+[ ! -s "$fake_apt_log" ] ||
+  fail 'dedicated APT verifier invoked an APT command'
 
 printf '# state changed after attestation\n' \
   >>"${apt_root}/etc/apt/sources.list.d/debian.sources"
@@ -461,15 +471,43 @@ printf '# state changed after attestation\n' \
 expect_failure stale-apt-trust \
   'homelab APT source identity has changed since attestation' \
   env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
-  FAKE_APT_LOG="$fake_apt_log" DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  DEBIAN_DEV_HEADLESS_APT_ROOT="$apt_root" \
-  "$installer" --system
+  FAKE_APT_LOG="$fake_apt_log" \
+  "$installer" --verify-apt-attestation "$apt_root"
 [ ! -s "$fake_apt_log" ] ||
   fail 'stale APT trust invoked apt-get'
+
+for fixture_override in \
+  DEBIAN_DEV_HEADLESS_APT_ROOT \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR \
+  DEBIAN_DEV_HEADLESS_SOURCE_DIR; do
+  : >"$fake_apt_log"
+  expect_failure "system-${fixture_override}" \
+    "--system refuses fixture override: ${fixture_override}" \
+    env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
+    FAKE_APT_LOG="$fake_apt_log" "${fixture_override}=$apt_root" \
+    "$installer" --system
+  [ ! -s "$fake_apt_log" ] ||
+    fail "--system invoked APT with ${fixture_override}"
+done
 
 expect_failure user-privilege '--user refuses root' \
   env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" "$installer" --user
+
+user_installer="${test_root}/debian-dev-headless-user-install.sh"
+compat_bin="${test_root}/trusted-debian-bin"
+mkdir -p "$compat_bin"
+printf '#!/usr/bin/env bash\nprintf "fd fixture\\n"\n' >"${compat_bin}/fdfind"
+printf '#!/usr/bin/env bash\nprintf "bat fixture\\n"\n' >"${compat_bin}/batcat"
+chmod +x "${compat_bin}/fdfind" "${compat_bin}/batcat"
+cp "$installer" "$user_installer"
+sed -i \
+  -e "s#^debian_fd_target=/usr/bin/fdfind\$#debian_fd_target=${compat_bin}/fdfind#" \
+  -e "s#^debian_bat_target=/usr/bin/batcat\$#debian_bat_target=${compat_bin}/batcat#" \
+  "$user_installer"
+bash -n "$user_installer"
+export DEBIAN_DEV_HEADLESS_SOURCE_DIR="$source_dir"
 
 user_fixture="$(new_fixture user-reconciliation)"
 printf '%s\n' \
@@ -494,7 +532,7 @@ elif [ "${1:-}" = exec ]; then
   shift 2
   case "${1:-}" in
     */node_modules/.bin/*) exec "$@" ;;
-    *) printf '%s\n' '1.3.14 22.23.1 1.26.5 3.14.6 0.11.32 3.254.0 1.13.7 1.36.3 4.2.3 5.8.1 2.9.3 0.19.6 3.13.3 0.21.7 3.1.2 1.49.0 0.116.0 0.72.0 8.30.1 2.96.0 0.63.1 0.19.2 1.26.0 18.17.1 0.23.5 0.10.0' ;;
+    *) printf '%s\n' '1.3.14 22.23.1 1.26.5 3.14.6 0.11.32 3.253.0 1.13.6 1.36.2 4.2.3 5.8.1 2.9.3 0.19.2 3.13.3 0.21.7 3.1.2 1.49.0 0.116.0 0.72.0 8.30.1 2.96.0 0.63.1 0.19.2 1.26.0 18.17.1 0.23.5 0.10.0' ;;
   esac
 else
   exit 2
@@ -539,6 +577,13 @@ sed -i \
 install -m755 "${artifacts}/mise-bad" "${user_home}/.local/bin/mise"
 install -m755 "${artifacts}/codex-bad" "${user_home}/.local/bin/codex"
 install -m755 "${artifacts}/op" "${user_home}/.local/bin/op"
+printf '#!/usr/bin/env bash\nprintf "untrusted fd\\n"\n' \
+  >"${user_home}/.local/bin/fdfind"
+printf '#!/usr/bin/env bash\nprintf "untrusted bat\\n"\n' \
+  >"${user_home}/.local/bin/batcat"
+chmod +x \
+  "${user_home}/.local/bin/fdfind" \
+  "${user_home}/.local/bin/batcat"
 
 bun_identity="$(
   sha256sum \
@@ -592,19 +637,54 @@ HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
   FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
   DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --user
+  "$user_installer" --user
 cmp "${artifacts}/mise-good" "${user_home}/.local/bin/mise"
 cmp "${artifacts}/codex-good" "${user_home}/.local/bin/codex"
+[[ "$(readlink "${user_home}/.local/bin/fd")" = "${compat_bin}/fdfind" ]] ||
+  fail 'fd compatibility link trusted a PATH-shadowing command'
+[[ "$(readlink "${user_home}/.local/bin/bat")" = "${compat_bin}/batcat" ]] ||
+  fail 'bat compatibility link trusted a PATH-shadowing command'
 [[ "$(wc -l <"$download_log")" == 2 ]] ||
   fail 'wrong-payload reconciliation did not download exactly two artifacts'
 
+ln -sfn "${user_home}/.local/bin/fdfind" "${user_home}/.local/bin/fd"
 HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
   FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
   DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --user
+  "$user_installer" --user
 [[ "$(wc -l <"$download_log")" == 2 ]] ||
   fail 'second user reconciliation downloaded already verified artifacts'
+[[ "$(readlink "${user_home}/.local/bin/fd")" = "${compat_bin}/fdfind" ]] ||
+  fail 'incorrect fd compatibility link was not repaired'
+
+rm "${user_home}/.local/bin/fd"
+mkdir "${user_home}/.local/bin/fd"
+expect_failure compatibility-directory-collision \
+  'Debian compatibility target already exists and is not a symlink' \
+  env HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
+  FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$user_installer" --user
+[[ -d "${user_home}/.local/bin/fd" ]] ||
+  fail 'fd compatibility collision was not preserved'
+rmdir "${user_home}/.local/bin/fd"
+ln -s "${compat_bin}/fdfind" "${user_home}/.local/bin/fd"
+
+rm "${user_home}/.local/bin/bat"
+printf 'preserve user bat target\n' >"${user_home}/.local/bin/bat"
+expect_failure compatibility-file-collision \
+  'Debian compatibility target already exists and is not a symlink' \
+  env HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
+  FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$user_installer" --user
+grep -Fqx 'preserve user bat target' "${user_home}/.local/bin/bat" ||
+  fail 'bat compatibility collision was modified'
+rm "${user_home}/.local/bin/bat"
+ln -s "${compat_bin}/batcat" "${user_home}/.local/bin/bat"
 
 rm "${user_home}/.local/bin/mise"
 ln -s "${artifacts}/mise-bad" "${user_home}/.local/bin/mise"
@@ -614,7 +694,7 @@ expect_failure unsafe-managed-symlink \
   FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
   DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --user
+  "$user_installer" --user
 
 op_fixture="$(new_fixture onepassword-verification)"
 cp "${user_fixture}/required-commands.tsv" "${op_fixture}/required-commands.tsv"
@@ -679,7 +759,7 @@ HOME="$op_home" PATH="${op_bin}:/usr/bin:/bin" \
   FAKE_OP_ZIP="${op_artifacts}/op.zip" \
   DEBIAN_DEV_HEADLESS_ROLE_DIR="$op_fixture" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --user
+  "$user_installer" --user
 cmp "${op_artifacts}/op" "${op_home}/.local/bin/op"
 
 printf 'unexpected archive member\n' >"${op_artifacts}/README"
@@ -692,7 +772,7 @@ expect_failure unsafe-op-archive \
   FAKE_OP_ZIP="${op_artifacts}/op-extra.zip" \
   DEBIAN_DEV_HEADLESS_ROLE_DIR="$op_fixture" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --user
+  "$user_installer" --user
 
 cp "${source_dir}/scripts/testdata/onepassword-other.sig" \
   "${op_artifacts}/op.sig"
@@ -706,7 +786,7 @@ expect_failure extra-op-signer \
   FAKE_OP_ZIP="${op_artifacts}/op-other-signer.zip" \
   DEBIAN_DEV_HEADLESS_ROLE_DIR="$op_fixture" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
-  "$installer" --user
+  "$user_installer" --user
 
 snapshot_tree "$dry_home" >"${test_root}/bootstrap-before.tree"
 HOME="$dry_home" CHEZMOI_ROLE=debian-dev-headless \
@@ -807,9 +887,18 @@ grep -Fq 'WARN: pinned Antidote is unavailable' "${shell_root}/offline.out" ||
 rm -rf -- "${shell_home}/.antidote" "${shell_home}/.antidote.lock"
 : >"$antidote_log"
 HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
-  ANTIDOTE_TEST_FETCH_DELAY=0.2 PATH="${fake_bin}:/usr/bin:/bin" \
+  ANTIDOTE_TEST_LOCK_PUBLISH_DELAY=0.2 ANTIDOTE_TEST_FETCH_DELAY=0.2 \
+  PATH="${fake_bin}:/usr/bin:/bin" \
   zsh -dfc 'source "$1"' _ "$rendered_zsh" >"${shell_root}/concurrent-1.out" 2>&1 &
 first_shell_pid=$!
+for _ in {1..100}; do
+  [[ -d "${shell_home}/.antidote.lock" &&
+     ! -e "${shell_home}/.antidote.lock/pid" ]] && break
+  sleep 0.01
+done
+[[ -d "${shell_home}/.antidote.lock" &&
+   ! -e "${shell_home}/.antidote.lock/pid" ]] ||
+  fail 'Antidote publication-gap fixture was not reached'
 HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
   ANTIDOTE_TEST_FETCH_DELAY=0.2 PATH="${fake_bin}:/usr/bin:/bin" \
   zsh -dfc 'source "$1"' _ "$rendered_zsh" >"${shell_root}/concurrent-2.out" 2>&1 &
@@ -834,6 +923,16 @@ HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$comm
 [[ -d "${shell_home}/.antidote/.git" && ! -e "${shell_home}/.antidote.lock" ]] ||
   fail 'stale Antidote lock was not safely recovered'
 
+rm -rf -- "${shell_home}/.antidote"
+mkdir -p "${shell_home}/.antidote.lock"
+: >"$antidote_log"
+HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
+  ANTIDOTE_LOCK_MAX_ATTEMPTS=2 ANTIDOTE_LOCK_WAIT_SECONDS=0.01 \
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  zsh -dfc 'source "$1"' _ "$rendered_zsh"
+[[ -d "${shell_home}/.antidote/.git" && ! -e "${shell_home}/.antidote.lock" ]] ||
+  fail 'abandoned ownerless Antidote lock was not recovered after its grace'
+
 sleep 30 &
 live_lock_pid=$!
 mkdir -p "${shell_home}/.antidote.lock"
@@ -849,6 +948,29 @@ grep -Fq 'timed out waiting for Antidote reconciliation' \
   fail 'live Antidote lock did not produce the bounded timeout warning'
 [[ -d "${shell_home}/.antidote.lock" ]] ||
   fail 'live Antidote lock was incorrectly removed by a non-owner'
+rm -f "${shell_home}/.antidote.lock/pid"
+rmdir "${shell_home}/.antidote.lock"
+
+rm -rf -- "${shell_home}/.antidote"
+: >"$antidote_log"
+HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
+  ANTIDOTE_TEST_FETCH_DELAY=0.3 PATH="${fake_bin}:/usr/bin:/bin" \
+  zsh -dfc 'source "$1"' _ "$rendered_zsh" \
+  >"${shell_root}/changed-owner.out" 2>&1 &
+changed_owner_shell_pid=$!
+for _ in {1..100}; do
+  [[ -f "${shell_home}/.antidote.lock/pid" ]] && break
+  sleep 0.01
+done
+[[ -f "${shell_home}/.antidote.lock/pid" ]] ||
+  fail 'Antidote changed-owner fixture did not acquire the lock'
+printf '%s\n' "$$" >"${shell_home}/.antidote.lock/pid"
+wait "$changed_owner_shell_pid"
+grep -Fq 'lock ownership changed; preserving it' \
+  "${shell_root}/changed-owner.out" ||
+  fail 'Antidote release did not warn about changed ownership'
+[[ -d "${shell_home}/.antidote.lock" ]] ||
+  fail 'Antidote release removed another owner lock'
 rm -f "${shell_home}/.antidote.lock/pid"
 rmdir "${shell_home}/.antidote.lock"
 

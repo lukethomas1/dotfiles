@@ -31,6 +31,12 @@ be hardened before it becomes the durable developer-console baseline.
   unmanaged local include.
 - Make the Chezmoi headless render itself ignore-all/allow-specific and make
   Antidote reconciliation safe under concurrent shell startup.
+- Match Pulumi, Talos, kubectl, and Cilium CLI to the exact client versions
+  accepted by the homelab repository instead of independently selecting newer
+  patch releases.
+- Separate fixture-root APT attestation verification from live `--system`
+  mutation, publish Antidote lock ownership safely, and reconcile Debian
+  `fd`/`bat` compatibility links without PATH trust or destructive collisions.
 - Pin Antidote and every shared Zsh plugin to the currently working full commit
   identity across all profiles.
 - Revert the unrelated macOS npm-to-Bun behavior change; other established
@@ -45,6 +51,7 @@ be hardened before it becomes the durable developer-console baseline.
   this repository's manifests.
 - Enrolling 1Password, Codex, Git, cluster, cloud, or other credentials.
 - Running the system or real-home apply phases in normal repository validation.
+- Upgrading homelab's exact infrastructure-client compatibility gates.
 
 ## Capabilities
 

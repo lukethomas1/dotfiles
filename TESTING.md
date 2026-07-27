@@ -87,11 +87,15 @@ First inspect the non-mutating plan:
 
 ```bash
 ./scripts/debian-dev-headless-install.sh --dry-run
+./scripts/debian-dev-headless-install.sh --verify-apt-attestation /
 ```
 
 This first preview uses only Debian base `awk`/`grep` validation and reports
 that full jq-dependent lock and ownership checks are deferred until
-`--verify-manifests` or the post-system user phase.
+`--verify-manifests` or the post-system user phase. The explicit attestation
+verifier accepts an absolute Debian root, validates it without invoking APT,
+and is also the only supported interface for fixture-root attestation tests.
+The live `--system` mode rejects fixture and alternate-manifest overrides.
 
 Then run the system phase as root, the software phase as the unprivileged
 console user, initialize role data from the checkout, and apply separately:
@@ -115,13 +119,18 @@ additively installs package names from `packages.txt`.
 User tools have exact identities: mise uses its committed strict lock, Bun
 uses its frozen lock, vendor downloads use committed artifact and payload
 SHA-256 digests, and 1Password requires its committed public key, exact valid
-signer, release signature, and payload identity. Reconciliation owns only its declared targets under
+signer, release signature, and payload identity. Pulumi `3.253.0`, Talos
+`1.13.6`, kubectl `1.36.2`, and Cilium CLI `0.19.2` deliberately match the
+homelab execution gates. Reconciliation owns only its declared targets under
 `~/.local/bin` and leaves pre-existing container engines, tmux, zellij, and
-unrelated user binaries in place. Removing a declaration does not uninstall a
-package or delete retained credentials, instances, or volumes; cleanup is a
-separate, explicit operator action. The workflow installs CLI software and
-secretless configuration only—it never signs in to 1Password, GitHub,
-Cloudflare, or another service and never creates credentials.
+unrelated user binaries in place. The `fd` and `bat` compatibility links use
+only `/usr/bin/fdfind` and `/usr/bin/batcat`; an unexpected file or directory
+at either destination is preserved and stops reconciliation. Removing a
+declaration does not uninstall a package or delete retained credentials,
+instances, or volumes; cleanup is a separate, explicit operator action. The
+workflow installs CLI software and secretless configuration only—it never
+signs in to 1Password, GitHub, Cloudflare, or another service and never creates
+credentials.
 
 After software validation, manually create a unique SSH signing key for each
 console and configure only the unmanaged local include:
