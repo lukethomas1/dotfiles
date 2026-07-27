@@ -2,15 +2,15 @@
 # These recreate the fish quality-of-life features on zsh.
 
 # fish-style abbreviations (the `abbr` command). zsh-abbr needs zsh-job-queue.
-olets/zsh-job-queue
-olets/zsh-abbr
+olets/zsh-job-queue pin:b1657094313d598434e38f9ef6e2d10107f58c45
+olets/zsh-abbr pin:889f4772c12b9dbe4965bbd56f2572af0a28fa3b
 
 # fish-style autosuggestions (grey inline suggestion from history)
-zsh-users/zsh-autosuggestions
+zsh-users/zsh-autosuggestions pin:85919cd1ffa7d2d5412f6d3fe437ebdbeeec4fc5
 
 # extra completion definitions — fpath only, activated by compinit in .zshrc
-zsh-users/zsh-completions kind:fpath path:src
+zsh-users/zsh-completions kind:fpath path:src pin:f63d0e642261e40dfaadfcef478ef338e1aa315f
 
 # fish-style command-line syntax highlighting. MUST be sourced last so it can
 # wrap every other widget that the plugins above define.
-zdharma-continuum/fast-syntax-highlighting
+zdharma-continuum/fast-syntax-highlighting pin:3d574ccf48804b10dca52625df13da5edae7f553

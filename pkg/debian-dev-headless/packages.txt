@@ -1,5 +1,6 @@
-# Signed Debian snapshot baseline. Keep one package per line and do not add a
-# container engine, terminal multiplexer, language SDK, or floating repository.
+# Rolling Debian 13 stable/security package-name baseline. Homelab owns APT
+# sources, keyrings, and trust. Keep one package per line and do not add a
+# container engine, terminal multiplexer, or language SDK.
 bash
 zsh
 coreutils

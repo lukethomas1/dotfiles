@@ -3,11 +3,11 @@
 	email = lukethethomas@gmail.com
 {{- if eq .role "arch" }}
 	signingkey = ~/.ssh/id_ed25519.pub
-{{- else if and (ne .role "container") (ne .role "debian-dev-headless") }}
+{{- else if not .secretless }}
 	signingkey = FEF953F3FC13A7EB
 {{- end }}
 [commit]
-{{- if or (eq .role "container") (eq .role "debian-dev-headless") }}
+{{- if .secretless }}
 	gpgsign = false
 {{- else }}
 	gpgsign = true

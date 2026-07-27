@@ -1,31 +1,35 @@
 {{- $role := "" -}}
 {{- $distro := "" -}}
+{{- $secretless := false -}}
+{{- $headless := false -}}
 
-{{- /* Auto-detect from environment variable (used by sandbox containers) */ -}}
+{{- /* Auto-detect from environment variable (used by sandbox containers). */ -}}
 {{- if env "CHEZMOI_ROLE" -}}
 {{-   $role = env "CHEZMOI_ROLE" -}}
-{{-   if eq $role "arch" -}}
-{{-     $distro = "arch" -}}
-{{-   else if eq $role "fedora" -}}
-{{-     $distro = "fedora" -}}
-{{-   else if eq $role "macos" -}}
-{{-     $distro = "macos" -}}
-{{-   else if or (eq $role "container") (eq $role "debian-dev-headless") -}}
-{{-     $distro = "debian" -}}
-{{-   end -}}
 {{- /* Auto-detect macOS */ -}}
 {{- else if eq .chezmoi.os "darwin" -}}
 {{-   $role = "macos" -}}
-{{-   $distro = "macos" -}}
 {{- /* Prompt on Linux */ -}}
 {{- else -}}
 {{-   $role = promptStringOnce . "role" "Role (arch/container/debian-dev-headless/fedora)" -}}
-{{-   $distro = promptStringOnce . "distro" "Distro (arch/debian/fedora)" -}}
 {{- end -}}
 
-{{- if or (eq $role "container") (eq $role "debian-dev-headless") -}}
+{{- if not (or (eq $role "arch") (eq $role "container") (eq $role "debian-dev-headless") (eq $role "fedora") (eq $role "macos")) -}}
+{{-   fail (printf "unsupported CHEZMOI_ROLE %q (expected arch, container, debian-dev-headless, fedora, or macos)" $role) -}}
+{{- end -}}
+
+{{- if eq $role "arch" -}}
+{{-   $distro = "arch" -}}
+{{- else if eq $role "fedora" -}}
+{{-   $distro = "fedora" -}}
+{{- else if eq $role "macos" -}}
+{{-   $distro = "macos" -}}
+{{- else -}}
 {{-   $distro = "debian" -}}
 {{- end -}}
+
+{{- $secretless = or (eq $role "container") (eq $role "debian-dev-headless") -}}
+{{- $headless = eq $role "debian-dev-headless" -}}
 
 encryption = "age"
 
@@ -36,3 +40,5 @@ encryption = "age"
 [data]
   role = {{ $role | quote }}
   distro = {{ $distro | quote }}
+  secretless = {{ $secretless }}
+  headless = {{ $headless }}

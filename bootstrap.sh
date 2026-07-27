@@ -166,13 +166,9 @@ print_dry_run_plan() {
       echo "  require chezmoi from the container image"
       echo "  install zsh and starship only when missing"
       ;;
-    debian-dev-headless)
-      echo "  run the authenticated Debian 13 role installer"
-      echo "  require no Age identity, SSH material, or account credentials"
-      ;;
   esac
 
-  if [ "${role}" != "container" ] && [ "${role}" != "debian-dev-headless" ]; then
+  if [ "${role}" != "container" ]; then
     echo "  require ~/.config/chezmoi/key.txt before applying encrypted files"
   fi
 
@@ -192,7 +188,7 @@ print_dry_run_plan() {
   case "${role}" in
     macos)
       echo "  brew bundle --file=${source_dir}/pkg/macos/Brewfile"
-      echo "  bun add --global @devcontainers/cli (when Bun is available)"
+      echo "  npm install -g @devcontainers/cli (when npm is available)"
       ;;
     arch)
       dry_run_manifest "shelly install --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
@@ -213,9 +209,6 @@ print_dry_run_plan() {
     container)
       echo "  skip host package manifests; the Dockerfile owns container packages"
       ;;
-    debian-dev-headless)
-      "${source_dir}/scripts/debian-dev-headless-install.sh" --dry-run
-      ;;
   esac
 }
 
@@ -224,10 +217,6 @@ OS="$(uname -s)"
 echo "Detected OS: ${OS}"
 
 if [ "${DRY_RUN}" = true ]; then
-  if [ "${CHEZMOI_ROLE:-}" = "debian-dev-headless" ]; then
-    print_dry_run_plan "debian-dev-headless"
-    exit 0
-  fi
   case "$OS" in
     Darwin)
       print_dry_run_plan "macos"
@@ -238,11 +227,7 @@ if [ "${DRY_RUN}" = true ]; then
       elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
         print_dry_run_plan "fedora"
       elif [ -f /etc/debian_version ]; then
-        if [ "${CHEZMOI_ROLE:-}" = "debian-dev-headless" ]; then
-          print_dry_run_plan "debian-dev-headless"
-        else
-          print_dry_run_plan "container"
-        fi
+        print_dry_run_plan "container"
       else
         echo "ERROR: Unsupported Linux distro" >&2
         exit 1
@@ -311,24 +296,19 @@ case "$OS" in
       fi
       export CHEZMOI_ROLE="fedora"
     elif [ -f /etc/debian_version ]; then
-      if [ "${CHEZMOI_ROLE:-}" = "debian-dev-headless" ]; then
-        "${SCRIPT_DIR}/scripts/debian-dev-headless-install.sh" --user
-        export CHEZMOI_ROLE="debian-dev-headless"
-      else
-        # Debian container — chezmoi should already be installed via Dockerfile
-        if ! command -v chezmoi >/dev/null; then
-          echo "ERROR: chezmoi not found. Install it first (should be in Dockerfile)."
-          exit 1
-        fi
-        # Install zsh + starship for full dev experience
-        if ! command -v zsh >/dev/null; then
-          sudo apt-get update && sudo apt-get install -y zsh
-        fi
-        if ! command -v starship >/dev/null; then
-          curl -sS https://starship.rs/install.sh | sh -s -- -y
-        fi
-        export CHEZMOI_ROLE="container"
+      # Debian container — chezmoi should already be installed via Dockerfile
+      if ! command -v chezmoi >/dev/null; then
+        echo "ERROR: chezmoi not found. Install it first (should be in Dockerfile)."
+        exit 1
       fi
+      # Install zsh + starship for full dev experience
+      if ! command -v zsh >/dev/null; then
+        sudo apt-get update && sudo apt-get install -y zsh
+      fi
+      if ! command -v starship >/dev/null; then
+        curl -sS https://starship.rs/install.sh | sh -s -- -y
+      fi
+      export CHEZMOI_ROLE="container"
     else
       echo "ERROR: Unsupported Linux distro"
       exit 1
@@ -344,8 +324,8 @@ echo "Role: ${CHEZMOI_ROLE}"
 
 # Check for age key (not required for containers)
 if [ ! -f ~/.config/chezmoi/key.txt ]; then
-  if [ "${CHEZMOI_ROLE}" = "container" ] || [ "${CHEZMOI_ROLE}" = "debian-dev-headless" ]; then
-    echo "No age key found — skipping secrets (${CHEZMOI_ROLE} profile)."
+  if [ "${CHEZMOI_ROLE}" = "container" ]; then
+    echo "No age key found — skipping secrets (container profile)."
   else
     echo "ERROR: Age key not found at ~/.config/chezmoi/key.txt"
     echo "Copy your key from a secure source, then re-run."
@@ -366,10 +346,10 @@ fi
 if [ "${CHEZMOI_ROLE}" = "macos" ]; then
   echo "Installing Homebrew packages..."
   brew bundle --file="$(chezmoi source-path)/pkg/macos/Brewfile"
-  # JavaScript globals are owned by Bun; Node remains runtime-only.
-  if command -v bun >/dev/null; then
-    echo "Installing Bun globals..."
-    bun add --global @devcontainers/cli
+  # npm globals (not available via brew)
+  if command -v npm >/dev/null; then
+    echo "Installing npm globals..."
+    npm install -g @devcontainers/cli 2>/dev/null || sudo npm install -g @devcontainers/cli
   fi
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing Arch host packages..."

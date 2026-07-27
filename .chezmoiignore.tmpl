@@ -1,3 +1,19 @@
+{{- $role := index . "role" }}
+{{- $secretless := index . "secretless" }}
+{{- $headless := index . "headless" }}
+{{- if not $role }}
+{{-   fail "missing or unsupported role data; run CHEZMOI_ROLE=<role> chezmoi init --source <checkout> --no-tty before chezmoi apply" }}
+{{- end }}
+{{- if not (or (eq $role "arch") (eq $role "container") (eq $role "debian-dev-headless") (eq $role "fedora") (eq $role "macos")) }}
+{{-   fail "missing or unsupported role data; run CHEZMOI_ROLE=<role> chezmoi init --source <checkout> --no-tty before chezmoi apply" }}
+{{- end }}
+{{- if and (or (eq $role "container") (eq $role "debian-dev-headless")) (not $secretless) }}
+{{-   fail "stale secretless role data; rerun role-aware chezmoi init before chezmoi apply" }}
+{{- end }}
+{{- if and (eq $role "debian-dev-headless") (not $headless) }}
+{{-   fail "stale headless role data; rerun role-aware chezmoi init before chezmoi apply" }}
+{{- end }}
+
 # Non-dotfile repo contents
 README.md
 NEW-MAC-SETUP.md
@@ -17,38 +33,59 @@ archive/**
 assets
 assets/**
 
-# Secretless Debian roles: full user configuration but no personal secret,
-# authentication, or SSH material. Root trust remains owned by homelab.
-{{ if or (eq .role "container") (eq .role "debian-dev-headless") }}
+# Secretless roles never receive personal secret, authentication, or SSH
+# material. Root trust for durable headless Debian remains owned by homelab.
+{{ if $secretless }}
 .ssh/**
 .config/secrets.env
 .config/chezmoi/key.txt
 {{ end }}
 
 # Shared ignores for non-container roles
-{{ if and (ne .role "container") (ne .role "debian-dev-headless") }}
+{{ if not $secretless }}
 .config/nvim/lua/plugins/disabled.lua
 {{ end }}
 
-# macOS: skip Linux-only stuff + SSH + secrets (zsh applies on all roles now)
-{{ if eq .chezmoi.os "darwin" }}
-.config/hypr/**
+# macOS owns AeroSpace but not the Linux desktop stack.
+{{ if eq $role "macos" }}
 .config/niri/**
+.config/noctalia/**
 .bashrc
 .ssh/**
 .config/secrets.env
 {{ end }}
 
-# Arch: skip macOS-only desktop configuration. The former Hyprland
-# configuration is retained under archive/ and is never deployed.
-{{ if eq .role "arch" }}
+# Arch owns Niri/Noctalia and the shared Ghostty configuration.
+{{ if eq $role "arch" }}
 .config/aerospace/**
 {{ end }}
 
-# Fedora COSMIC Atomic: skip macOS-only + Arch-only desktop configs
-{{ if eq .role "fedora" }}
+# Fedora COSMIC Atomic owns neither AeroSpace nor the Arch compositor stack.
+{{ if eq $role "fedora" }}
 .config/aerospace/**
-.config/hypr/**
 .config/niri/**
+.config/noctalia/**
 .bashrc
+{{ end }}
+
+# Containers receive shared developer configuration but no desktop or
+# workstation-only application state.
+{{ if eq $role "container" }}
+.config/aerospace/**
+.config/ghostty/**
+.config/niri/**
+.config/noctalia/**
+.Documents
+.local
+{{ end }}
+
+# Durable headless Debian is an explicit CLI allowlist. The managed-target test
+# fails if future source content expands this set without a reviewed decision.
+{{ if $headless }}
+.config/aerospace/**
+.config/ghostty/**
+.config/niri/**
+.config/noctalia/**
+.Documents
+.local
 {{ end }}
