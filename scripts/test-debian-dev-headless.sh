@@ -31,6 +31,22 @@ new_fixture() {
   printf '%s\n' "$fixture"
 }
 
+make_zip() {
+  local output="$1"
+  shift
+  python3 - "$output" "$@" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+output = pathlib.Path(sys.argv[1])
+with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    for name in sys.argv[2:]:
+        path = pathlib.Path(name)
+        archive.write(path, arcname=path.name)
+PY
+}
+
 snapshot_tree() {
   local root="$1"
   (
@@ -182,6 +198,43 @@ HOME="${headless_root}/home" XDG_CONFIG_HOME="${headless_root}/config" \
   CHEZMOI_ROLE=debian-dev-headless \
   "${headless_cmd[@]}" verify --no-tty --refresh-externals=never
 
+grep -Fq $'path = ~/.gitconfig-local' "${headless_root}/home/.gitconfig" ||
+  fail 'headless Git config does not include the unmanaged local enrollment file'
+printf '%s\n' \
+  '[gpg]' \
+  '    format = ssh' \
+  '[user]' \
+  '    signingkey = ~/.ssh/id_ed25519_signing.pub' \
+  '[commit]' \
+  '    gpgsign = true' >"${headless_root}/home/.gitconfig-local"
+HOME="${headless_root}/home" \
+  git config --file "${headless_root}/home/.gitconfig" --includes \
+    --get commit.gpgsign |
+  grep -Fqx true ||
+  fail 'unmanaged local Git include did not override the unsigned baseline'
+assert_unmanaged_prefix debian-dev-headless '\.gitconfig-local'
+
+allowlist_source="${test_root}/allowlist-source"
+cp -a --reflink=auto "${source_dir}" "${allowlist_source}"
+printf 'must remain unmanaged\n' >"${allowlist_source}/dot_unclassified"
+allowlist_root="${test_root}/allowlist-role"
+mkdir -p "${allowlist_root}/home" "${allowlist_root}/config"
+HOME="${allowlist_root}/home" XDG_CONFIG_HOME="${allowlist_root}/config" \
+  CHEZMOI_ROLE=debian-dev-headless \
+  chezmoi init --source "${allowlist_source}" \
+    --config-path "${allowlist_root}/chezmoi.toml" --no-tty
+HOME="${allowlist_root}/home" XDG_CONFIG_HOME="${allowlist_root}/config" \
+  CHEZMOI_ROLE=debian-dev-headless \
+  chezmoi --config "${allowlist_root}/chezmoi.toml" \
+    --source "${allowlist_source}" \
+    --destination "${allowlist_root}/home" \
+    --cache "${allowlist_root}/cache" \
+    --persistent-state "${allowlist_root}/state" \
+    managed --path-style=relative >"${allowlist_root}/managed"
+if grep -Fqx .unclassified "${allowlist_root}/managed"; then
+  fail 'ignore-all headless policy admitted an unclassified source target'
+fi
+
 expect_failure unsupported-role 'unsupported CHEZMOI_ROLE' \
   env HOME="${test_root}/unsupported-home" CHEZMOI_ROLE=unknown \
   chezmoi init --source "$source_dir" --config-path "${test_root}/unsupported.toml" --no-tty
@@ -215,6 +268,7 @@ minimal_bin="${test_root}/minimal-bin"
 mkdir -p "$minimal_bin"
 ln -s "$(command -v awk)" "${minimal_bin}/awk"
 ln -s "$(command -v grep)" "${minimal_bin}/grep"
+ln -s "$(command -v uname)" "${minimal_bin}/uname"
 expect_failure missing-validator 'required validation command is unavailable: jq' \
   env PATH="$minimal_bin" /bin/bash "$installer" --verify-manifests
 
@@ -223,10 +277,22 @@ sed -n '2p' "${fixture}/vendor-tools.tsv" >>"${fixture}/vendor-tools.tsv"
 expect_failure duplicate-vendor 'vendor-tools.tsv contains an invalid' \
   env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
 
-fixture="$(new_fixture prohibited-package)"
-printf '%s\n' docker >>"${fixture}/packages.txt"
-expect_failure prohibited-package 'packages.txt contains an invalid' \
+fixture="$(new_fixture invalid-package)"
+printf '%s\n' 'Docker Engine' >>"${fixture}/packages.txt"
+expect_failure invalid-package 'packages.txt contains an invalid' \
   env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
+
+for permitted in docker podman containerd tmux zellij; do
+  fixture="$(new_fixture "permitted-${permitted}")"
+  printf '%s\n' "$permitted" >>"${fixture}/packages.txt"
+  if env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" \
+    "$installer" --verify-manifests >"${test_root}/permitted-${permitted}.out" 2>&1; then
+    fail "${permitted} fixture unexpectedly passed without an inventory mapping"
+  fi
+  grep -Fq 'no command inventory mapping' \
+    "${test_root}/permitted-${permitted}.out" ||
+    fail "${permitted} was rejected by a prohibited-name policy"
+done
 
 fixture="$(new_fixture duplicate-owner)"
 sed -i 's/|herdr|binary|/|jq|binary|/' "${fixture}/vendor-tools.tsv"
@@ -234,7 +300,7 @@ expect_failure duplicate-owner 'command has multiple manifest owners: jq' \
   env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
 
 fixture="$(new_fixture unsafe-member)"
-sed -i 's#|codex-x86_64-unknown-linux-musl$#|../codex#' "${fixture}/vendor-tools.tsv"
+sed -i 's#|codex-x86_64-unknown-linux-musl|#|../codex|#' "${fixture}/vendor-tools.tsv"
 expect_failure unsafe-member 'vendor-tools.tsv contains an invalid' \
   env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
 
@@ -249,9 +315,38 @@ expect_failure bun-lock-mismatch 'bun.lock does not match wrangler@4.113.0' \
   env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
 
 fixture="$(new_fixture wrong-fingerprint)"
-sed -i 's/3FEF9748469ADBE15DA7CA80AC2D62742012EA22/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA/' \
+sed -i 's/3FEF9748469ADBE15DA7CA80AC2D62742012EA22/AAAAAAAA/' \
   "${fixture}/onepassword.env"
 expect_failure wrong-fingerprint 'onepassword.env is incomplete or invalid' \
+  env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
+
+fixture="$(new_fixture missing-apt-command)"
+sed -i '/^git$/d' "${fixture}/packages.txt"
+expect_failure missing-apt-command \
+  'required command has no native manifest owner: foundation|git' \
+  env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
+
+fixture="$(new_fixture missing-mise-command)"
+sed -i '/^go = /d' "${fixture}/mise.toml"
+expect_failure missing-mise-command \
+  'required command has no native manifest owner: runtimes|go' \
+  env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
+
+fixture="$(new_fixture missing-vendor-command)"
+sed -i '/^codex|/d' "${fixture}/vendor-tools.tsv"
+expect_failure missing-vendor-command \
+  'required command has no native manifest owner: agent-repository|codex' \
+  env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
+
+fixture="$(new_fixture missing-bun-command)"
+sed -i '\#"@fission-ai/openspec":#d' "${fixture}/bun-tools/package.json"
+expect_failure missing-bun-command \
+  'required command has no native manifest owner: agent-repository|openspec' \
+  env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
+
+fixture="$(new_fixture missing-onepassword-entry)"
+sed -i '/^ONEPASSWORD_BINARY_SHA256=/d' "${fixture}/onepassword.env"
+expect_failure missing-onepassword-entry 'onepassword.env is incomplete or invalid' \
   env DEBIAN_DEV_HEADLESS_ROLE_DIR="$fixture" "$installer" --verify-manifests
 
 debian_os="${test_root}/debian-os-release"
@@ -260,12 +355,20 @@ printf 'ID=debian\nVERSION_ID=13\n' >"$debian_os"
 printf 'ID=debian\nVERSION_ID=12\n' >"$unsupported_os"
 dry_home="${test_root}/dry-home"
 mkdir -p "$dry_home"
+minimal_dry_home="${test_root}/minimal-dry-home"
+mkdir -p "${minimal_dry_home}"
+env HOME="${minimal_dry_home}" PATH="${minimal_bin}" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  /bin/bash "$installer" --dry-run >"${test_root}/minimal-dry-run.out"
+grep -Fq 'full jq-dependent lock and inventory validation is deferred' \
+  "${test_root}/minimal-dry-run.out" ||
+  fail 'minimal dry run did not report deferred full validation'
 snapshot_tree "$dry_home" >"${test_root}/dry-before.tree"
 HOME="$dry_home" DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
   "$installer" --dry-run >"${test_root}/dry-run.out"
 snapshot_tree "$dry_home" >"${test_root}/dry-after.tree"
 cmp "${test_root}/dry-before.tree" "${test_root}/dry-after.tree"
-grep -Fq 'homelab-owned signed Debian 13 stable/security APT trust' \
+grep -Fq 'homelab-attested Debian 13 stable/security APT trust state' \
   "${test_root}/dry-run.out"
 expect_failure unsupported-platform 'Debian 13 is required' \
   env HOME="$dry_home" DEBIAN_DEV_HEADLESS_OS_RELEASE="$unsupported_os" \
@@ -289,13 +392,62 @@ cat >"${fake_system_bin}/apt-get" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"${FAKE_APT_LOG}"
 EOF
+cat >"${fake_system_bin}/stat" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = -c ] && [ "${2:-}" = '%U:%G:%a' ]; then
+  printf 'root:root:644\n'
+else
+  exec /usr/bin/stat "$@"
+fi
+EOF
 chmod +x "${fake_system_bin}/id" "${fake_system_bin}/apt-cache" \
-  "${fake_system_bin}/apt-get"
+  "${fake_system_bin}/apt-get" "${fake_system_bin}/stat"
+
+apt_root="${test_root}/apt-root"
+mkdir -p \
+  "${apt_root}/etc/apt/sources.list.d" \
+  "${apt_root}/etc/homelab" \
+  "${apt_root}/usr/share/keyrings"
+printf '%s\n' \
+  'Types: deb' \
+  'URIs: https://deb.debian.org/debian' \
+  'Suites: trixie trixie-updates' \
+  'Components: main' \
+  'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+  '' \
+  'Types: deb' \
+  'URIs: https://security.debian.org/debian-security' \
+  'Suites: trixie-security' \
+  'Components: main' \
+  'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+  >"${apt_root}/etc/apt/sources.list.d/debian.sources"
+printf 'fixture Debian archive keyring\n' \
+  >"${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg"
+source_sha="$(sha256sum "${apt_root}/etc/apt/sources.list.d/debian.sources")"
+keyring_sha="$(sha256sum "${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg")"
+apt_config_sha="$(
+  {
+    printf 'etc/apt/sources.list.d/debian.sources|%s\n' "${source_sha%% *}"
+  } | sha256sum | awk '{ print $1 }'
+)"
+printf '%s\n' \
+  'schema=1' \
+  'role=debian-dev-headless' \
+  'os_id=debian' \
+  'version_id=13' \
+  'suites=trixie,trixie-updates,trixie-security' \
+  "apt_config_sha256=${apt_config_sha}" \
+  "source_sha256=${source_sha%% *}" \
+  "keyring_sha256=${keyring_sha%% *}" \
+  >"${apt_root}/etc/homelab/developer-console-apt-trust"
+chmod 0644 "${apt_root}/etc/homelab/developer-console-apt-trust"
+
 fake_apt_log="${test_root}/fake-apt.log"
 : >"$fake_apt_log"
 expect_failure missing-candidate 'no APT candidate is available for package: bash' \
   env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
   FAKE_APT_LOG="$fake_apt_log" DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  DEBIAN_DEV_HEADLESS_APT_ROOT="$apt_root" \
   "$installer" --system
 grep -Fqx update "$fake_apt_log" ||
   fail 'candidate test did not refresh metadata'
@@ -303,9 +455,258 @@ if grep -Fq install "$fake_apt_log"; then
   fail 'candidate failure invoked bulk package installation'
 fi
 
+printf '# state changed after attestation\n' \
+  >>"${apt_root}/etc/apt/sources.list.d/debian.sources"
+: >"$fake_apt_log"
+expect_failure stale-apt-trust \
+  'homelab APT source identity has changed since attestation' \
+  env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
+  FAKE_APT_LOG="$fake_apt_log" DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  DEBIAN_DEV_HEADLESS_APT_ROOT="$apt_root" \
+  "$installer" --system
+[ ! -s "$fake_apt_log" ] ||
+  fail 'stale APT trust invoked apt-get'
+
 expect_failure user-privilege '--user refuses root' \
   env HOME="$dry_home" PATH="${fake_system_bin}:/usr/bin:/bin" \
   DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" "$installer" --user
+
+user_fixture="$(new_fixture user-reconciliation)"
+printf '%s\n' \
+  '# group|command' \
+  'shell-editor|mise' \
+  'infrastructure|op' \
+  'agent-repository|codex' \
+  >"${user_fixture}/required-commands.tsv"
+user_root="${test_root}/user-reconciliation"
+user_home="${user_root}/home"
+user_bin="${user_root}/bin"
+artifacts="${user_root}/artifacts"
+mkdir -p "${user_home}/.local/bin" "$user_bin" "$artifacts"
+
+cat >"${artifacts}/mise-good" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = --version ]; then
+  printf 'mise 2026.7.13\n'
+elif [ "${1:-}" = install ]; then
+  exit 0
+elif [ "${1:-}" = exec ]; then
+  shift 2
+  case "${1:-}" in
+    */node_modules/.bin/*) exec "$@" ;;
+    *) printf '%s\n' '1.3.14 22.23.1 1.26.5 3.14.6 0.11.32 3.254.0 1.13.7 1.36.3 4.2.3 5.8.1 2.9.3 0.19.6 3.13.3 0.21.7 3.1.2 1.49.0 0.116.0 0.72.0 8.30.1 2.96.0 0.63.1 0.19.2 1.26.0 18.17.1 0.23.5 0.10.0' ;;
+  esac
+else
+  exit 2
+fi
+EOF
+cat >"${artifacts}/mise-bad" <<'EOF'
+#!/usr/bin/env bash
+printf 'mise 2026.7.13\n'
+EOF
+cat >"${artifacts}/codex-good" <<'EOF'
+#!/usr/bin/env bash
+printf 'codex-cli 0.145.0\n'
+EOF
+cat >"${artifacts}/codex-bad" <<'EOF'
+#!/usr/bin/env bash
+# Wrong payload that deliberately reports the pinned version.
+printf 'codex-cli 0.145.0\n'
+EOF
+cat >"${artifacts}/op" <<'EOF'
+#!/usr/bin/env bash
+printf '2.35.0\n'
+EOF
+chmod +x "${artifacts}/mise-good" "${artifacts}/mise-bad" \
+  "${artifacts}/codex-good" "${artifacts}/codex-bad" "${artifacts}/op"
+tar -czf "${artifacts}/codex.tar.gz" \
+  -C "$artifacts" --transform='s/codex-good/codex/' codex-good
+
+mise_digest="$(sha256sum "${artifacts}/mise-good")"
+codex_artifact_digest="$(sha256sum "${artifacts}/codex.tar.gz")"
+codex_payload_digest="$(sha256sum "${artifacts}/codex-good")"
+op_digest="$(sha256sum "${artifacts}/op")"
+printf '%s\n' \
+  '# name|version|command|format|url|artifact-sha256|archive-member|payload-sha256' \
+  "mise|2026.7.13|mise|binary|https://fixtures.invalid/mise|${mise_digest%% *}|-|-" \
+  >"${user_fixture}/vendor-tools.tsv"
+printf '%s\n' \
+  "codex|0.145.0|codex|tar.gz|https://fixtures.invalid/codex|${codex_artifact_digest%% *}|codex|${codex_payload_digest%% *}" \
+  >>"${user_fixture}/vendor-tools.tsv"
+sed -i \
+  "s/^ONEPASSWORD_BINARY_SHA256=.*/ONEPASSWORD_BINARY_SHA256=${op_digest%% *}/" \
+  "${user_fixture}/onepassword.env"
+install -m755 "${artifacts}/mise-bad" "${user_home}/.local/bin/mise"
+install -m755 "${artifacts}/codex-bad" "${user_home}/.local/bin/codex"
+install -m755 "${artifacts}/op" "${user_home}/.local/bin/op"
+
+bun_identity="$(
+  sha256sum \
+    "${user_fixture}/bun-tools/package.json" \
+    "${user_fixture}/bun-tools/bun.lock" |
+    sha256sum |
+    awk '{ print $1 }'
+)"
+bun_prefix="${user_home}/.local/share/homelab-bun-tools/${bun_identity}"
+mkdir -p "${bun_prefix}/node_modules/.bin"
+cat >"${bun_prefix}/node_modules/.bin/openspec" <<'EOF'
+#!/usr/bin/env bash
+printf '1.6.0\n'
+EOF
+cat >"${bun_prefix}/node_modules/.bin/wrangler" <<'EOF'
+#!/usr/bin/env bash
+printf '4.114.0\n'
+EOF
+chmod +x \
+  "${bun_prefix}/node_modules/.bin/openspec" \
+  "${bun_prefix}/node_modules/.bin/wrangler"
+
+cat >"${user_bin}/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+url=
+output=
+while (($#)); do
+  case "$1" in
+    --output) output="$2"; shift 2 ;;
+    http*) url="$1"; shift ;;
+    *) shift ;;
+  esac
+done
+printf '%s\n' "$url" >>"${FAKE_DOWNLOAD_LOG}"
+case "$url" in
+  */mise) cp "${FAKE_ARTIFACT_ROOT}/mise-good" "$output" ;;
+  */codex) cp "${FAKE_ARTIFACT_ROOT}/codex.tar.gz" "$output" ;;
+  *) printf 'ERROR: unexpected fixture URL %s\n' "$url" >&2; exit 1 ;;
+esac
+EOF
+cat >"${user_bin}/dpkg-query" <<'EOF'
+#!/usr/bin/env bash
+printf 'ii \n'
+EOF
+chmod +x "${user_bin}/curl" "${user_bin}/dpkg-query"
+
+download_log="${user_root}/downloads"
+: >"$download_log"
+HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
+  FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$installer" --user
+cmp "${artifacts}/mise-good" "${user_home}/.local/bin/mise"
+cmp "${artifacts}/codex-good" "${user_home}/.local/bin/codex"
+[[ "$(wc -l <"$download_log")" == 2 ]] ||
+  fail 'wrong-payload reconciliation did not download exactly two artifacts'
+
+HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
+  FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$installer" --user
+[[ "$(wc -l <"$download_log")" == 2 ]] ||
+  fail 'second user reconciliation downloaded already verified artifacts'
+
+rm "${user_home}/.local/bin/mise"
+ln -s "${artifacts}/mise-bad" "${user_home}/.local/bin/mise"
+expect_failure unsafe-managed-symlink \
+  'managed command target is not a regular file' \
+  env HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
+  FAKE_DOWNLOAD_LOG="$download_log" FAKE_ARTIFACT_ROOT="$artifacts" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$user_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$installer" --user
+
+op_fixture="$(new_fixture onepassword-verification)"
+cp "${user_fixture}/required-commands.tsv" "${op_fixture}/required-commands.tsv"
+cp "${user_fixture}/vendor-tools.tsv" "${op_fixture}/vendor-tools.tsv"
+op_root="${test_root}/onepassword-verification"
+op_home="${op_root}/home"
+op_bin="${op_root}/bin"
+op_artifacts="${op_root}/artifacts"
+mkdir -p "$op_root"
+cp -a "${user_home}" "${op_home}"
+rm -f "${op_home}/.local/bin/mise" "${op_home}/.local/bin/op"
+install -m755 "${artifacts}/mise-good" "${op_home}/.local/bin/mise"
+mkdir -p "$op_bin" "$op_artifacts"
+expected_fingerprint=298F7485D24F445609BE221F467E0816F054CF42
+cp "${source_dir}/scripts/testdata/onepassword-expected.asc" \
+  "${op_fixture}/onepassword.asc"
+cat >"${op_artifacts}/op" <<'EOF'
+#!/usr/bin/env bash
+printf '2.35.0\n'
+EOF
+chmod +x "${op_artifacts}/op"
+cp "${source_dir}/scripts/testdata/onepassword-expected.sig" \
+  "${op_artifacts}/op.sig"
+make_zip "${op_artifacts}/op.zip" \
+  "${op_artifacts}/op" "${op_artifacts}/op.sig"
+op_payload_digest="$(sha256sum "${op_artifacts}/op")"
+sed -i \
+  -e "s/^ONEPASSWORD_SIGNING_KEY_FINGERPRINT=.*/ONEPASSWORD_SIGNING_KEY_FINGERPRINT=${expected_fingerprint}/" \
+  -e 's#^ONEPASSWORD_ARTIFACT_BASE=.*#ONEPASSWORD_ARTIFACT_BASE=https://fixtures.invalid/op#' \
+  -e "s/^ONEPASSWORD_BINARY_SHA256=.*/ONEPASSWORD_BINARY_SHA256=${op_payload_digest%% *}/" \
+  "${op_fixture}/onepassword.env"
+op_bun_identity="$(
+  sha256sum \
+    "${op_fixture}/bun-tools/package.json" \
+    "${op_fixture}/bun-tools/bun.lock" |
+    sha256sum |
+    awk '{ print $1 }'
+)"
+op_bun_prefix="${op_home}/.local/share/homelab-bun-tools/${op_bun_identity}"
+mkdir -p "${op_bun_prefix}/node_modules/.bin"
+install -m755 "${bun_prefix}/node_modules/.bin/openspec" \
+  "${op_bun_prefix}/node_modules/.bin/openspec"
+install -m755 "${bun_prefix}/node_modules/.bin/wrangler" \
+  "${op_bun_prefix}/node_modules/.bin/wrangler"
+
+cat >"${op_bin}/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+output=
+while (($#)); do
+  case "$1" in
+    --output) output="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+cp "${FAKE_OP_ZIP}" "$output"
+EOF
+cp "${user_bin}/dpkg-query" "${op_bin}/dpkg-query"
+chmod +x "${op_bin}/curl" "${op_bin}/dpkg-query"
+
+HOME="$op_home" PATH="${op_bin}:/usr/bin:/bin" \
+  FAKE_OP_ZIP="${op_artifacts}/op.zip" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$op_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$installer" --user
+cmp "${op_artifacts}/op" "${op_home}/.local/bin/op"
+
+printf 'unexpected archive member\n' >"${op_artifacts}/README"
+make_zip "${op_artifacts}/op-extra.zip" \
+  "${op_artifacts}/op" "${op_artifacts}/op.sig" "${op_artifacts}/README"
+rm "${op_home}/.local/bin/op"
+expect_failure unsafe-op-archive \
+  '1Password archive must contain only op and op.sig' \
+  env HOME="$op_home" PATH="${op_bin}:/usr/bin:/bin" \
+  FAKE_OP_ZIP="${op_artifacts}/op-extra.zip" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$op_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$installer" --user
+
+cp "${source_dir}/scripts/testdata/onepassword-other.sig" \
+  "${op_artifacts}/op.sig"
+make_zip "${op_artifacts}/op-other-signer.zip" \
+  "${op_artifacts}/op" "${op_artifacts}/op.sig"
+cat "${source_dir}/scripts/testdata/onepassword-other.asc" \
+  >>"${op_fixture}/onepassword.asc"
+expect_failure extra-op-signer \
+  'committed 1Password key must contain exactly one primary key' \
+  env HOME="$op_home" PATH="${op_bin}:/usr/bin:/bin" \
+  FAKE_OP_ZIP="${op_artifacts}/op-other-signer.zip" \
+  DEBIAN_DEV_HEADLESS_ROLE_DIR="$op_fixture" \
+  DEBIAN_DEV_HEADLESS_OS_RELEASE="$debian_os" \
+  "$installer" --user
 
 snapshot_tree "$dry_home" >"${test_root}/bootstrap-before.tree"
 HOME="$dry_home" CHEZMOI_ROLE=debian-dev-headless \
@@ -338,6 +739,7 @@ case "$command_name" in
   remote)
     ;;
   fetch)
+    sleep "${ANTIDOTE_TEST_FETCH_DELAY:-0}"
     [ "${ANTIDOTE_TEST_FETCH_FAIL:-0}" != 1 ]
     ;;
   checkout)
@@ -401,5 +803,53 @@ grep -Fq 'WARN: pinned Antidote is unavailable' "${shell_root}/offline.out" ||
   fail 'offline Antidote startup did not warn'
 [ ! -e "${shell_home}/.antidote" ] ||
   fail 'offline Antidote startup left a partial checkout'
+
+rm -rf -- "${shell_home}/.antidote" "${shell_home}/.antidote.lock"
+: >"$antidote_log"
+HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
+  ANTIDOTE_TEST_FETCH_DELAY=0.2 PATH="${fake_bin}:/usr/bin:/bin" \
+  zsh -dfc 'source "$1"' _ "$rendered_zsh" >"${shell_root}/concurrent-1.out" 2>&1 &
+first_shell_pid=$!
+HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
+  ANTIDOTE_TEST_FETCH_DELAY=0.2 PATH="${fake_bin}:/usr/bin:/bin" \
+  zsh -dfc 'source "$1"' _ "$rendered_zsh" >"${shell_root}/concurrent-2.out" 2>&1 &
+second_shell_pid=$!
+wait "$first_shell_pid" "$second_shell_pid"
+[[ "$(grep -c '^fetch$' "$antidote_log")" == 1 ]] ||
+  fail 'concurrent Antidote startup performed more than one fetch'
+[[ ! -e "${shell_home}/.antidote.lock" ]] ||
+  fail 'concurrent Antidote startup left its lock behind'
+if find "${shell_home}/.antidote" -mindepth 1 -maxdepth 1 \
+  -name 'antidote.*' -print -quit | grep -q .; then
+  fail 'concurrent Antidote startup nested a temporary checkout'
+fi
+
+rm -rf -- "${shell_home}/.antidote"
+mkdir -p "${shell_home}/.antidote.lock"
+printf '99999999\n' >"${shell_home}/.antidote.lock/pid"
+: >"$antidote_log"
+HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  zsh -dfc 'source "$1"' _ "$rendered_zsh"
+[[ -d "${shell_home}/.antidote/.git" && ! -e "${shell_home}/.antidote.lock" ]] ||
+  fail 'stale Antidote lock was not safely recovered'
+
+sleep 30 &
+live_lock_pid=$!
+mkdir -p "${shell_home}/.antidote.lock"
+printf '%s\n' "$live_lock_pid" >"${shell_home}/.antidote.lock/pid"
+HOME="$shell_home" ANTIDOTE_TEST_LOG="$antidote_log" ANTIDOTE_TEST_COMMIT="$commit" \
+  ANTIDOTE_LOCK_MAX_ATTEMPTS=1 ANTIDOTE_LOCK_WAIT_SECONDS=0.01 \
+  PATH="${fake_bin}:/usr/bin:/bin" \
+  zsh -dfc 'source "$1"' _ "$rendered_zsh" >"${shell_root}/live-lock.out" 2>&1
+kill "$live_lock_pid"
+wait "$live_lock_pid" 2>/dev/null || true
+grep -Fq 'timed out waiting for Antidote reconciliation' \
+  "${shell_root}/live-lock.out" ||
+  fail 'live Antidote lock did not produce the bounded timeout warning'
+[[ -d "${shell_home}/.antidote.lock" ]] ||
+  fail 'live Antidote lock was incorrectly removed by a non-owner'
+rm -f "${shell_home}/.antidote.lock/pid"
+rmdir "${shell_home}/.antidote.lock"
 
 echo 'debian-dev-headless isolated, role-boundary, negative, dry-run, and shell-pin tests passed'

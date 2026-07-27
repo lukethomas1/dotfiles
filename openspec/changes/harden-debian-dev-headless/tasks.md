@@ -15,18 +15,19 @@
 ## 3. Debian System Package Ownership
 
 - [x] 3.1 Remove `debian-snapshot.env`, snapshot-source generation, and the generated-source prerequisite from the installer and tests.
-- [x] 3.2 Keep `packages.txt` as the native additive package-name manifest and validate uniqueness, package-name syntax, and prohibited declarations using only pre-APT base commands.
-- [x] 3.3 Make `--system` require root and Debian 13, run signed APT metadata refresh against homelab-owned configuration, verify every package has a candidate, and install the declared set without modifying sources or keyrings.
+- [x] 3.2 Keep `packages.txt` as the native additive package-name manifest and validate uniqueness and package-name syntax using only pre-APT base commands.
+- [x] 3.3 Make `--system` require root and Debian 13, validate the current homelab APT trust attestation, refresh signed metadata, verify every package has a candidate, and install the declared set without modifying sources or keyrings.
 - [x] 3.4 Update system-phase dry-run output and failure messages for missing candidates, unsupported platforms, and wrong privilege.
 
 ## 4. Native User-Tool Reconciliation
 
-- [x] 4.1 Remove `tool-catalog.tsv` and derive a unique command inventory from the mise, vendor, 1Password, Bun, compatibility-link, and Debian declarations.
+- [x] 4.1 Remove `tool-catalog.tsv`, derive a unique command inventory from native declarations, and enforce a separate versionless group/command completeness catalog.
 - [x] 4.2 Split validation into base structural checks and full user/CI checks with explicit command preflights and fail-closed status propagation.
-- [x] 4.3 Harden vendor rows with allowed formats, HTTPS URLs, full SHA-256 values, safe command/member paths, unique owners, and bidirectional version checks.
-- [x] 4.4 Commit the expected 1Password fingerprint and reject its release signature unless the imported key matches `3FEF9748469ADBE15DA7CA80AC2D62742012EA22`.
-- [x] 4.5 Prepend and directly inspect the managed local-bin path, install through temporary targets, post-verify exact versions before replacement, and clean all temporary paths through one exit trap.
-- [ ] 4.6 Keep reconciliation additive, stop rejecting pre-existing engines or session managers, and verify a second user-phase run performs no unnecessary replacement.
+- [x] 4.3 Harden vendor rows with artifact and installed-payload SHA-256 identities, allowed formats, safe command/member paths, unique owners, and bidirectional version checks.
+- [x] 4.4 Commit the expected 1Password public key and payload digest; safely select `op`/`op.sig` and require `VALIDSIG` to resolve to fingerprint `3FEF9748469ADBE15DA7CA80AC2D62742012EA22`.
+- [x] 4.5 Reject links/non-regular managed commands, verify installed identities, repair mismatches through authenticated temporary targets, and preserve prior commands on failure.
+- [x] 4.6 Keep reconciliation additive, remove console-specific engine/session-manager name bans, and verify a second user-phase run performs no unnecessary replacement.
+- [x] 4.7 Make pre-system `--dry-run` base-only and explicitly defer full jq-dependent validation.
 
 ## 5. Shared Shell Supply Chain
 
@@ -34,6 +35,7 @@
 - [x] 5.2 Add the five approved `pin:<SHA>` plugin commits to `.zsh_plugins.txt` and validate every declaration has a full revision.
 - [x] 5.3 Reconcile Antidote to the committed revision only when absent or mismatched, and degrade to a usable shell with a warning when the required fetch is unavailable.
 - [x] 5.4 Syntax-render Zsh configuration for all roles and test pinned, mismatched, and offline startup paths without modifying the real home.
+- [x] 5.5 Serialize Antidote clone/fetch/checkout with a portable bounded lock and test concurrent, live-lock, and stale-lock paths.
 
 ## 6. Bootstrap and Documentation
 
@@ -41,6 +43,8 @@
 - [x] 6.2 Revert the macOS npm-to-Bun change and confirm macOS documentation and dry-run output again match npm ownership.
 - [x] 6.3 Document the canonical local-checkout sequence: root `--system`, unprivileged `--user`, role-aware `chezmoi init --source <checkout> --no-tty`, then separate `chezmoi apply`.
 - [x] 6.4 Document rolling Debian package semantics, exact user-tool semantics, additive removal policy, homelab trust ownership, and credential non-enrollment.
+- [x] 6.5 Add the unmanaged `~/.gitconfig-local` enrollment boundary and document unique per-console SSH Git signing.
+- [x] 6.6 Change the headless ignore template to ignore-all/allow-specific and prove an unclassified fixture target remains unmanaged.
 
 ## 7. Final Validation and Rollout Evidence
 
@@ -48,4 +52,5 @@
 - [x] 7.2 Resolve official Arch package names with `pacman -Sp` if implementation changes any Arch package manifest. (Not applicable: no Arch package manifest changed.)
 - [ ] 7.3 Run the documented system and user phases in a disposable Debian 13 console with homelab-provided APT trust and record sanitized package and command-version evidence.
 - [ ] 7.4 Initialize and apply the role only in the disposable console, verify the exact secretless CLI target set, and document rollback without deleting packages, credentials, instances, or retained volumes.
-- [ ] 7.5 Open a separate homelab specification follow-up reconciling rolling Debian packages here with any exact OpenSSH or Mosh wording in the developer-console contract.
+- [x] 7.5 Reconcile the homelab developer-console change with rolling Debian trust, the APT attestation, unique Git signing enrollment, and unrestricted reviewed tool ownership.
+- [x] 7.6 Run adversarial deletion, wrong-payload, signer, ZIP, minimal dry-run, Git include, allowlist, and Antidote concurrency tests plus strict OpenSpec validation.

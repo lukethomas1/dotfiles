@@ -1,11 +1,12 @@
 ## ADDED Requirements
 
 ### Requirement: Debian headless system packages track trusted rolling security
-Homelab SHALL own Debian APT sources, keyrings, and trust. The Debian headless
-system phase SHALL NOT write APT configuration; it SHALL require Debian 13,
+Homelab SHALL own Debian APT sources, keyrings, and trust and SHALL attest its
+current Debian 13 rolling stable, updates, and security state through the
+root-owned developer-console APT trust interface. The Debian headless system
+phase SHALL NOT write APT configuration; it SHALL validate that attestation,
 perform a signed metadata refresh, verify that every declared package has a
-candidate, and additively install the package-name set from the configured
-stable/security sources.
+candidate, and additively install the package-name set.
 
 #### Scenario: Homelab APT configuration is ready
 - **WHEN** `--system` runs as root on Debian 13 with candidates for every
@@ -13,19 +14,22 @@ stable/security sources.
 - **THEN** the package set is installed without creating or replacing an APT
   source or keyring
 
+#### Scenario: APT trust is absent or stale
+- **WHEN** the trust attestation is missing, malformed, has the wrong owner or
+  mode, or its source/keyring identities no longer match
+- **THEN** the system phase stops before refreshing metadata or installing
+  packages
+
 #### Scenario: A package candidate is absent
 - **WHEN** the refreshed APT metadata has no candidate for a declared package
 - **THEN** installation stops with the missing package name before invoking the
   bulk install
 
-#### Scenario: A prohibited package is declared
-- **WHEN** a container engine, tmux, or zellij enters a Debian headless
-  installation manifest
-- **THEN** source validation fails before package installation
-
-#### Scenario: A prohibited command already exists
-- **WHEN** homelab or the user already owns a container engine, tmux, or zellij
-- **THEN** this profile neither removes it nor fails solely because it exists
+#### Scenario: An engine or session manager is declared
+- **WHEN** a future reviewed change assigns a container engine, tmux, or zellij
+  to one native installation manifest
+- **THEN** generic ownership and authentication rules apply without a
+  console-specific prohibited-name policy
 
 ### Requirement: Shared Zsh dependencies are commit-pinned
 Antidote and every repository-declared Zsh plugin SHALL use a committed
@@ -42,6 +46,11 @@ unavailable.
 - **THEN** shell startup emits a warning, skips unavailable plugins, and leaves
   the interactive shell usable
 
+#### Scenario: Concurrent shells reconcile Antidote
+- **WHEN** two shells start while Antidote is absent or mismatched
+- **THEN** one portable lock owner performs reconciliation while the other
+  waits or safely continues without nesting or corrupting the checkout
+
 #### Scenario: A plugin pin is missing
 - **WHEN** a plugin declaration lacks a full commit identity
 - **THEN** static validation fails before Chezmoi apply
@@ -53,7 +62,8 @@ Each declared package, runtime, command, and global developer tool SHALL have
 one authoritative owner among the platform package manifest, mise manifest and
 lock, verified vendor manifest, verified 1Password declaration, or Bun manifest
 and lock. Validation SHALL derive inventory from those native authorities and
-SHALL NOT require a duplicate hand-maintained catalog.
+SHALL require every versionless group/command entry in the required-command
+catalog without duplicating version or ownership data.
 
 #### Scenario: A command has multiple owners
 - **WHEN** native manifests assign the same command to competing installation
@@ -65,12 +75,18 @@ SHALL NOT require a duplicate hand-maintained catalog.
   cannot be reconciled with its native lock or declaration
 - **THEN** completeness validation fails with the conflicting sources
 
+#### Scenario: A required command loses its owner
+- **WHEN** a required APT, mise, vendor, Bun, or 1Password command is deleted
+  from its native authority
+- **THEN** completeness validation reports the missing command
+
 ### Requirement: User tools are pinned and authenticated
 Mise tools SHALL use a strict lockfile, Bun dependencies SHALL use a frozen
-lockfile, vendor artifacts SHALL use exact versions and SHA-256 digests, and
-1Password SHALL verify its release signature only after the imported key
-matches the committed expected fingerprint. Every validator SHALL declare its
-command dependencies and SHALL fail closed when one is unavailable.
+lockfile, vendor artifacts SHALL use exact versions and artifact/payload
+SHA-256 digests, and 1Password SHALL verify its safely selected release
+members against a committed public key, exact valid signer, and authenticated
+payload digest. Every validator SHALL declare its command dependencies and
+SHALL fail closed when one is unavailable.
 
 #### Scenario: A pinned artifact differs
 - **WHEN** an artifact checksum, lock identity, signature, or signing-key
@@ -85,6 +101,12 @@ command dependencies and SHALL fail closed when one is unavailable.
 - **WHEN** all verification passes
 - **THEN** every declared command reports its expected version from the
   unprivileged managed path
+
+#### Scenario: An existing command lies about its identity
+- **WHEN** a link, non-regular file, or wrong payload reports the expected
+  version at a profile-owned direct-command path
+- **THEN** it is not trusted and is either safely repaired from authenticated
+  inputs or rejected before use
 
 ### Requirement: Reconciliation is safe to repeat
 Repeated provisioning SHALL check the exact profile-owned command paths,

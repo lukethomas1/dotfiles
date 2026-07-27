@@ -54,7 +54,16 @@ require_commands() {
   done
 }
 
-for role_input in packages.txt mise.toml mise.lock vendor-tools.tsv onepassword.env bun-tools/package.json bun-tools/bun.lock; do
+for role_input in \
+  packages.txt \
+  required-commands.tsv \
+  mise.toml \
+  mise.lock \
+  vendor-tools.tsv \
+  onepassword.env \
+  onepassword.asc \
+  bun-tools/package.json \
+  bun-tools/bun.lock; do
   require_file "${role_dir}/${role_input}"
 done
 require_file "${source_dir}/dot_zsh_plugins.txt"
@@ -66,10 +75,22 @@ verify_package_manifest() {
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
     $0 !~ /^[a-z0-9][a-z0-9+.-]*$/ { ok=0 }
     seen[$0]++ { ok=0 }
-    $0 ~ /^(docker|podman|containerd|docker-ce|docker.io|nerdctl|tmux|zellij)$/ { ok=0 }
     END { exit ok ? 0 : 1 }
   ' "${role_dir}/packages.txt" ||
-    die 'packages.txt contains an invalid, duplicate, or prohibited package'
+    die 'packages.txt contains an invalid or duplicate package'
+}
+
+verify_required_commands_manifest() {
+  awk -F'|' '
+    BEGIN { ok=1 }
+    /^[[:space:]]*#/ || NF==0 { next }
+    NF!=2 { ok=0; next }
+    $1 !~ /^[a-z][a-z0-9-]*$/ { ok=0 }
+    $2 !~ /^[A-Za-z0-9][A-Za-z0-9._+-]*$/ { ok=0 }
+    seen[$2]++ { ok=0 }
+    END { exit ok ? 0 : 1 }
+  ' "${role_dir}/required-commands.tsv" ||
+    die 'required-commands.tsv contains an invalid or duplicate command'
 }
 
 verify_vendor_manifest() {
@@ -84,18 +105,17 @@ verify_vendor_manifest() {
     }
     BEGIN { ok=1 }
     /^[[:space:]]*#/ || NF==0 { next }
-    NF!=7 { ok=0; next }
+    NF!=8 { ok=0; next }
     !safe_name($1) || $2 !~ /^[0-9]+(\.[0-9]+)+$/ || !safe_name($3) { ok=0 }
     seen_tool[$1]++ || seen_command[$3]++ { ok=0 }
-    $3 ~ /^(docker|podman|containerd|dockerd|nerdctl|ctr|tmux|zellij)$/ { ok=0 }
     $4 !~ /^(binary|tar\.gz)$/ { ok=0 }
     $5 !~ /^https:\/\// { ok=0 }
     $6 !~ /^[0-9a-f]+$/ || length($6)!=64 { ok=0 }
-    $4=="binary" && $7!="-" { ok=0 }
-    $4=="tar.gz" && !safe_member($7) { ok=0 }
+    $4=="binary" && ($7!="-" || $8!="-") { ok=0 }
+    $4=="tar.gz" && (!safe_member($7) || $8 !~ /^[0-9a-f]+$/ || length($8)!=64) { ok=0 }
     END { exit ok ? 0 : 1 }
   ' "${role_dir}/vendor-tools.tsv" ||
-    die 'vendor-tools.tsv contains an invalid, duplicate, prohibited, or unsafe row'
+    die 'vendor-tools.tsv contains an invalid, duplicate, or unsafe row'
 }
 
 verify_onepassword_manifest() {
@@ -103,23 +123,44 @@ verify_onepassword_manifest() {
     BEGIN { ok=1 }
     /^[[:space:]]*#/ || NF==0 { next }
     NF!=2 { ok=0; next }
-    !($1 ~ /^ONEPASSWORD_(CLI_VERSION|SIGNING_KEY_URL|ARTIFACT_BASE|SIGNING_KEY_FINGERPRINT)$/) { ok=0 }
+    !($1 ~ /^ONEPASSWORD_(CLI_VERSION|ARTIFACT_BASE|SIGNING_KEY_FINGERPRINT|BINARY_SHA256)$/) { ok=0 }
     seen[$1]++ { ok=0 }
     $1=="ONEPASSWORD_CLI_VERSION" && $2 !~ /^[0-9]+\.[0-9]+\.[0-9]+$/ { ok=0 }
-    ($1=="ONEPASSWORD_SIGNING_KEY_URL" || $1=="ONEPASSWORD_ARTIFACT_BASE") &&
+    $1=="ONEPASSWORD_ARTIFACT_BASE" &&
       $2 !~ /^https:\/\/[A-Za-z0-9._~:\/?&=%+-]+$/ { ok=0 }
     $1=="ONEPASSWORD_SIGNING_KEY_FINGERPRINT" &&
-      ($2!="3FEF9748469ADBE15DA7CA80AC2D62742012EA22") { ok=0 }
+      ($2 !~ /^[0-9A-F]+$/ || length($2)!=40) { ok=0 }
+    $1=="ONEPASSWORD_BINARY_SHA256" &&
+      ($2 !~ /^[0-9a-f]+$/ || length($2)!=64) { ok=0 }
     END {
       required[1]="ONEPASSWORD_CLI_VERSION"
-      required[2]="ONEPASSWORD_SIGNING_KEY_URL"
-      required[3]="ONEPASSWORD_ARTIFACT_BASE"
-      required[4]="ONEPASSWORD_SIGNING_KEY_FINGERPRINT"
+      required[2]="ONEPASSWORD_ARTIFACT_BASE"
+      required[3]="ONEPASSWORD_SIGNING_KEY_FINGERPRINT"
+      required[4]="ONEPASSWORD_BINARY_SHA256"
       for (i=1; i<=4; i++) if (seen[required[i]]!=1) ok=0
       exit ok ? 0 : 1
     }
   ' "${role_dir}/onepassword.env" ||
     die 'onepassword.env is incomplete or invalid'
+}
+
+verify_onepassword_public_key() {
+  local expected actual
+  expected="$(
+    awk -F= '$1=="ONEPASSWORD_SIGNING_KEY_FINGERPRINT" { print $2; exit }' \
+      "${role_dir}/onepassword.env"
+  )"
+  actual="$(
+    gpg --batch --no-autostart --show-keys --with-colons --fingerprint \
+      "${role_dir}/onepassword.asc" 2>/dev/null |
+      awk -F: '
+        $1=="pub" { primary=1; count++ }
+        primary && $1=="fpr" { print $10; primary=0 }
+        END { if (count!=1) exit 1 }
+      '
+  )" || die 'committed 1Password key must contain exactly one primary key'
+  [ "$actual" = "$expected" ] ||
+    die "committed 1Password public key fingerprint differs: ${actual:-missing}"
 }
 
 verify_zsh_pins() {
@@ -151,6 +192,7 @@ verify_zsh_pins() {
 verify_base_manifests() {
   require_commands awk grep
   verify_package_manifest
+  verify_required_commands_manifest
   verify_vendor_manifest
   verify_onepassword_manifest
   verify_zsh_pins
@@ -264,6 +306,10 @@ emit_command_inventory() {
     command_name="$(package_command_for_name "$package")" ||
       die "no command inventory mapping for Debian package: ${package}"
     [ -n "$command_name" ] && printf '%s|apt:%s\n' "$command_name" "$package"
+    case "$package" in
+      fd-find) printf '%s\n' 'fd|compat:fd-find' ;;
+      bat) printf '%s\n' 'bat|compat:bat' ;;
+    esac
   done < "${role_dir}/packages.txt"
 
   while IFS='|' read -r key version; do
@@ -275,9 +321,20 @@ emit_command_inventory() {
 
   awk -F'|' '!/^[[:space:]]*#/ && NF { print $3 "|vendor:" $1 "@" $2 }' \
     "${role_dir}/vendor-tools.tsv"
-  printf '%s\n' 'op|signed-vendor:1password'
-  printf '%s\n' 'openspec|bun:@fission-ai/openspec' 'wrangler|bun:wrangler'
-  printf '%s\n' 'fd|compat:fd-find' 'bat|compat:bat'
+  if [ -n "$(manifest_value_from "${role_dir}/onepassword.env" ONEPASSWORD_CLI_VERSION)" ]; then
+    printf '%s\n' 'op|signed-vendor:1password'
+  fi
+  jq -r '
+    .dependencies // {} |
+    to_entries[] |
+    if .key == "@fission-ai/openspec" then
+      "openspec|bun:@fission-ai/openspec"
+    elif .key == "wrangler" then
+      "wrangler|bun:wrangler"
+    else
+      "bun-unknown|" + .key
+    end
+  ' "${role_dir}/bun-tools/package.json"
 }
 
 verify_mise_lock() {
@@ -349,11 +406,32 @@ verify_unique_inventory() {
     die "command has multiple manifest owners: ${duplicate}"
 }
 
+verify_required_inventory() {
+  local inventory missing
+  inventory="$(emit_command_inventory)"
+  missing="$(
+    awk -F'|' '
+      NR==FNR {
+        if ($0 !~ /^[[:space:]]*#/ && NF) inventory[$1]=1
+        next
+      }
+      $0 !~ /^[[:space:]]*#/ && NF && !inventory[$2] {
+        print $1 "|" $2
+        exit
+      }
+    ' <(printf '%s\n' "$inventory") "${role_dir}/required-commands.tsv"
+  )"
+  [ -z "$missing" ] ||
+    die "required command has no native manifest owner: ${missing}"
+}
+
 verify_full_manifests() {
-  require_commands jq sort
+  require_commands jq sort gpg
+  verify_onepassword_public_key
+  verify_unique_inventory
+  verify_required_inventory
   verify_mise_lock
   verify_bun_lock
-  verify_unique_inventory
 }
 
 verify_platform() {
@@ -373,6 +451,102 @@ verify_platform() {
     die 'Debian 13 is required'
 }
 
+manifest_value_from() {
+  local file="$1"
+  local key="$2"
+  awk -F= -v key="$key" '$1==key { print substr($0, index($0, "=")+1); exit }' \
+    "$file"
+}
+
+compute_apt_config_digest() {
+  local apt_root="$1"
+  local path relative digest
+  {
+    while IFS= read -r -d '' path; do
+      [ -f "$path" ] && [ ! -L "$path" ] ||
+        die "APT configuration entry is not a regular file: ${path}"
+      relative="${path#"${apt_root}"/}"
+      digest="$(sha256sum "$path")"
+      printf '%s|%s\n' "$relative" "${digest%% *}"
+    done < <(
+      find "${apt_root}/etc/apt" -maxdepth 2 \
+        \( -path "${apt_root}/etc/apt/sources.list" \
+           -o -path "${apt_root}/etc/apt/sources.list.d/*.list" \
+           -o -path "${apt_root}/etc/apt/sources.list.d/*.sources" \) \
+        -print0 |
+        sort -z
+    )
+  } | sha256sum | awk '{ print $1 }'
+}
+
+verify_apt_trust_attestation() {
+  local apt_root trust_file source_file keyring_file owner_mode
+  local schema role os_id version_id suites apt_config_sha source_sha keyring_sha
+  local actual
+  apt_root="${DEBIAN_DEV_HEADLESS_APT_ROOT:-}"
+  trust_file="${apt_root}/etc/homelab/developer-console-apt-trust"
+  source_file="${apt_root}/etc/apt/sources.list.d/debian.sources"
+  keyring_file="${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg"
+
+  [ -f "$trust_file" ] && [ ! -L "$trust_file" ] ||
+    die "homelab APT trust attestation is missing or unsafe: ${trust_file}"
+  owner_mode="$(stat -c '%U:%G:%a' "$trust_file")"
+  [ "$owner_mode" = root:root:644 ] ||
+    die "homelab APT trust attestation has unsafe ownership or mode: ${owner_mode}"
+
+  awk -F= '
+    BEGIN { ok=1 }
+    NF!=2 { ok=0; next }
+    !($1 ~ /^(schema|role|os_id|version_id|suites|apt_config_sha256|source_sha256|keyring_sha256)$/) { ok=0 }
+    seen[$1]++ { ok=0 }
+    END {
+      required[1]="schema"
+      required[2]="role"
+      required[3]="os_id"
+      required[4]="version_id"
+      required[5]="suites"
+      required[6]="apt_config_sha256"
+      required[7]="source_sha256"
+      required[8]="keyring_sha256"
+      for (i=1; i<=8; i++) if (seen[required[i]]!=1) ok=0
+      exit ok ? 0 : 1
+    }
+  ' "$trust_file" ||
+    die 'homelab APT trust attestation is malformed'
+
+  schema="$(manifest_value_from "$trust_file" schema)"
+  role="$(manifest_value_from "$trust_file" role)"
+  os_id="$(manifest_value_from "$trust_file" os_id)"
+  version_id="$(manifest_value_from "$trust_file" version_id)"
+  suites="$(manifest_value_from "$trust_file" suites)"
+  apt_config_sha="$(manifest_value_from "$trust_file" apt_config_sha256)"
+  source_sha="$(manifest_value_from "$trust_file" source_sha256)"
+  keyring_sha="$(manifest_value_from "$trust_file" keyring_sha256)"
+  [ "$schema" = 1 ] &&
+    [ "$role" = debian-dev-headless ] &&
+    [ "$os_id" = debian ] &&
+    [ "$version_id" = 13 ] &&
+    [ "$suites" = trixie,trixie-updates,trixie-security ] ||
+    die 'homelab APT trust attestation does not match the Debian headless contract'
+  for actual in "$apt_config_sha" "$source_sha" "$keyring_sha"; do
+    [[ "$actual" =~ ^[0-9a-f]{64}$ ]] ||
+      die 'homelab APT trust attestation contains an invalid digest'
+  done
+  [ -f "$source_file" ] && [ ! -L "$source_file" ] ||
+    die "attested Debian source is missing or unsafe: ${source_file}"
+  [ -f "$keyring_file" ] && [ ! -L "$keyring_file" ] ||
+    die "attested Debian keyring is missing or unsafe: ${keyring_file}"
+  actual="$(sha256sum "$source_file")"
+  [ "${actual%% *}" = "$source_sha" ] ||
+    die 'homelab APT source identity has changed since attestation'
+  actual="$(sha256sum "$keyring_file")"
+  [ "${actual%% *}" = "$keyring_sha" ] ||
+    die 'homelab APT keyring identity has changed since attestation'
+  actual="$(compute_apt_config_digest "$apt_root")"
+  [ "$actual" = "$apt_config_sha" ] ||
+    die 'homelab APT configuration has changed since attestation'
+}
+
 verify_base_manifests
 
 if [ "$mode" = verify-manifests ]; then
@@ -384,9 +558,9 @@ fi
 verify_platform
 
 if [ "$mode" = dry-run ]; then
-  verify_full_manifests
   echo 'Dry run: no package, download, home, shell, or credential changes will be made.'
-  echo '  require homelab-owned signed Debian 13 stable/security APT trust'
+  echo '  base manifest validation passed; full jq-dependent lock and inventory validation is deferred'
+  echo '  require a current homelab-attested Debian 13 stable/security APT trust state'
   echo '  refresh APT metadata and verify a candidate for every package'
   echo '  install the additive package-name set from packages.txt'
   echo '  verify and install exact vendor artifacts into ~/.local/bin'
@@ -401,8 +575,9 @@ fi
 if [ "$mode" = system ]; then
   [ "$(id -u)" -eq 0 ] ||
     die '--system must run as root before the user phase'
-  require_commands apt-get apt-cache
+  require_commands apt-get apt-cache find sha256sum sort stat
 
+  verify_apt_trust_attestation
   apt-get update
 
   packages=()
@@ -427,7 +602,7 @@ fi
   die '--user refuses root; user-owned tools must remain unprivileged'
 
 verify_full_manifests
-require_commands chmod curl dpkg-query gpg grep install ln mkdir mktemp mv rm sha256sum tar unzip
+require_commands chmod curl dpkg-query gpg grep install ln mkdir mktemp mv rm sha256sum tar unzip zipinfo
 
 while IFS= read -r package; do
   case "$package" in ''|'#'*) continue ;; esac
@@ -449,13 +624,43 @@ version_matches() {
   [[ "$output" =~ (^|[^0-9.])${version_regex}([^0-9.]|$) ]]
 }
 
+managed_target_is_safe() {
+  local path="$1"
+  if [ -L "$path" ] || { [ -e "$path" ] && [ ! -f "$path" ]; }; then
+    die "managed command target is not a regular file: ${path}"
+  fi
+}
+
+payload_matches() {
+  local path="$1"
+  local expected="$2"
+  local actual
+  [ -f "$path" ] && [ ! -L "$path" ] || return 1
+  actual="$(sha256sum "$path")"
+  [ "${actual%% *}" = "$expected" ]
+}
+
+installed_command_matches() {
+  local path="$1"
+  local version="$2"
+  local digest="$3"
+  managed_target_is_safe "$path"
+  payload_matches "$path" "$digest" && version_matches "$path" "$version"
+}
+
 install_verified_command() {
   local source_path="$1"
   local command_name="$2"
   local version="$3"
-  staged_path="${local_bin}/.${command_name}.new.$$"
+  local expected_digest="$4"
 
+  payload_matches "$source_path" "$expected_digest" ||
+    die "authenticated payload digest does not match for ${command_name}"
+  managed_target_is_safe "${local_bin}/${command_name}"
+  staged_path="$(mktemp "${local_bin}/.${command_name}.new.XXXXXX")"
   install -m755 "$source_path" "$staged_path"
+  payload_matches "$staged_path" "$expected_digest" ||
+    die "staged ${command_name} payload identity changed"
   version_matches "$staged_path" "$version" || {
     die "staged ${command_name} does not report version ${version}"
   }
@@ -463,10 +668,15 @@ install_verified_command() {
   staged_path=
 }
 
-while IFS='|' read -r tool version command_name format url digest member; do
+while IFS='|' read -r tool version command_name format url digest member payload_digest; do
   case "$tool" in ''|'#'*) continue ;; esac
-  if [ -x "${local_bin}/${command_name}" ] &&
-     version_matches "${local_bin}/${command_name}" "$version"; then
+  if [ "$format" = binary ]; then
+    expected_payload_digest="$digest"
+  else
+    expected_payload_digest="$payload_digest"
+  fi
+  if installed_command_matches \
+    "${local_bin}/${command_name}" "$version" "$expected_payload_digest"; then
     continue
   fi
 
@@ -493,13 +703,16 @@ while IFS='|' read -r tool version command_name format url digest member; do
       tar --extract --gzip --file "$artifact" --directory "$extract_dir" \
         --no-same-owner --no-same-permissions "$member"
       candidate="${extract_dir}/${member}"
+      payload_matches "$candidate" "$expected_payload_digest" ||
+        die "archive member digest does not match for ${tool}: ${member}"
       ;;
     *)
       die "unsupported vendor format for ${tool}: ${format}"
       ;;
   esac
 
-  install_verified_command "$candidate" "$command_name" "$version"
+  install_verified_command \
+    "$candidate" "$command_name" "$version" "$expected_payload_digest"
 done < "${role_dir}/vendor-tools.tsv"
 
 manifest_value() {
@@ -508,29 +721,65 @@ manifest_value() {
     "${role_dir}/onepassword.env"
 }
 ONEPASSWORD_CLI_VERSION="$(manifest_value ONEPASSWORD_CLI_VERSION)"
-ONEPASSWORD_SIGNING_KEY_URL="$(manifest_value ONEPASSWORD_SIGNING_KEY_URL)"
 ONEPASSWORD_SIGNING_KEY_FINGERPRINT="$(manifest_value ONEPASSWORD_SIGNING_KEY_FINGERPRINT)"
 ONEPASSWORD_ARTIFACT_BASE="$(manifest_value ONEPASSWORD_ARTIFACT_BASE)"
-if [ ! -x "${local_bin}/op" ] ||
-   ! version_matches "${local_bin}/op" "$ONEPASSWORD_CLI_VERSION"; then
+ONEPASSWORD_BINARY_SHA256="$(manifest_value ONEPASSWORD_BINARY_SHA256)"
+if ! installed_command_matches \
+  "${local_bin}/op" "$ONEPASSWORD_CLI_VERSION" "$ONEPASSWORD_BINARY_SHA256"; then
   op_dir="${temp_root}/onepassword"
   mkdir -p "${op_dir}/gnupg"
   chmod 700 "${op_dir}/gnupg"
   curl --fail --location --silent --show-error \
     "${ONEPASSWORD_ARTIFACT_BASE}/op_linux_amd64_v${ONEPASSWORD_CLI_VERSION}.zip" \
     --output "${op_dir}/op.zip"
-  unzip -q "${op_dir}/op.zip" -d "$op_dir"
-  curl --fail --location --silent --show-error \
-    "$ONEPASSWORD_SIGNING_KEY_URL" --output "${op_dir}/1password.asc"
-  GNUPGHOME="${op_dir}/gnupg" gpg --batch --import "${op_dir}/1password.asc"
+  archive_members="$(unzip -Z1 "${op_dir}/op.zip" | sort)"
+  [ "$archive_members" = $'op\nop.sig' ] ||
+    die '1Password archive must contain only op and op.sig'
+  for op_member in op op.sig; do
+    archive_type="$(
+      zipinfo -l "${op_dir}/op.zip" "$op_member" |
+        awk '$0 ~ /^[dlcbps-][rwx-]{9}/ { print substr($1, 1, 1); exit }'
+    )"
+    [ "$archive_type" = - ] ||
+      die "1Password archive member is not a regular file: ${op_member}"
+    unzip -p "${op_dir}/op.zip" "$op_member" >"${op_dir}/${op_member}"
+  done
+  GNUPGHOME="${op_dir}/gnupg" gpg --batch --no-autostart \
+    --import "${role_dir}/onepassword.asc"
   signing_fingerprint="$(
-    GNUPGHOME="${op_dir}/gnupg" gpg --batch --with-colons --fingerprint |
-      awk -F: '$1=="fpr" { print $10; exit }'
-  )"
+    GNUPGHOME="${op_dir}/gnupg" gpg --batch --no-autostart \
+      --with-colons --fingerprint |
+      awk -F: '
+        $1=="pub" { primary=1; count++ }
+        primary && $1=="fpr" { print $10; primary=0 }
+        END { if (count!=1) exit 1 }
+      '
+  )" || die 'committed 1Password key must contain exactly one primary key'
   [ "$signing_fingerprint" = "$ONEPASSWORD_SIGNING_KEY_FINGERPRINT" ] ||
     die "unexpected 1Password signing-key fingerprint: ${signing_fingerprint:-missing}"
-  GNUPGHOME="${op_dir}/gnupg" gpg --batch --verify "${op_dir}/op.sig" "${op_dir}/op"
-  install_verified_command "${op_dir}/op" op "$ONEPASSWORD_CLI_VERSION"
+  signature_status="$(
+    GNUPGHOME="${op_dir}/gnupg" gpg --batch --no-autostart --status-fd 1 \
+      --verify "${op_dir}/op.sig" "${op_dir}/op" 2>/dev/null
+  )" || die '1Password release signature verification failed'
+  valid_signer="$(
+    printf '%s\n' "$signature_status" |
+      awk -v expected="$ONEPASSWORD_SIGNING_KEY_FINGERPRINT" '
+        $1=="[GNUPG:]" && $2=="VALIDSIG" {
+          count++
+          if ($3==expected || $12==expected) matched++
+        }
+        END {
+          if (count==1 && matched==1) print expected
+          else exit 1
+        }
+      '
+  )" || die '1Password release signature was not made by the committed key'
+  [ "$valid_signer" = "$ONEPASSWORD_SIGNING_KEY_FINGERPRINT" ] ||
+    die '1Password release signature signer is ambiguous'
+  payload_matches "${op_dir}/op" "$ONEPASSWORD_BINARY_SHA256" ||
+    die '1Password authenticated payload digest does not match'
+  install_verified_command \
+    "${op_dir}/op" op "$ONEPASSWORD_CLI_VERSION" "$ONEPASSWORD_BINARY_SHA256"
 fi
 
 mkdir -p "${HOME}/.config/mise"

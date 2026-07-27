@@ -1,6 +1,6 @@
-# name|version|command|format|url|sha256|archive-member
-mise|2026.7.13|mise|binary|https://github.com/jdx/mise/releases/download/v2026.7.13/mise-v2026.7.13-linux-x64|47878bc295922c5f7ba4b7054cc372ce6ae730a1f12b0753c1cda2f04376eee2|-
-cloudflared|2026.7.3|cloudflared|binary|https://github.com/cloudflare/cloudflared/releases/download/2026.7.3/cloudflared-linux-amd64|9d71c677db00134c1bd4144b7783486b654ad281b1ea62b4972098d19f770f17|-
-codex|0.145.0|codex|tar.gz|https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-x86_64-unknown-linux-musl.tar.gz|bfaf13c9ba34f2ad764e4a916c49cf7177aeba329cf0f719e2227566fc8d662a|codex-x86_64-unknown-linux-musl
-herdr|0.7.5|herdr|binary|https://github.com/ogulcancelik/herdr/releases/download/v0.7.5/herdr-linux-x86_64|3dc83288073e4c2d3c679a30e7be97bcca9141c6fd17dbbb9219142e95c59253|-
-tea|0.8.0|tea|binary|https://dl.gitea.com/tea/0.8.0/tea-0.8.0-linux-amd64|8bc99e0532548365f3d86a5ec319772121a844d54a01cb51cddb030d05f27a0c|-
+# name|version|command|format|url|artifact-sha256|archive-member|payload-sha256
+mise|2026.7.13|mise|binary|https://github.com/jdx/mise/releases/download/v2026.7.13/mise-v2026.7.13-linux-x64|47878bc295922c5f7ba4b7054cc372ce6ae730a1f12b0753c1cda2f04376eee2|-|-
+cloudflared|2026.7.3|cloudflared|binary|https://github.com/cloudflare/cloudflared/releases/download/2026.7.3/cloudflared-linux-amd64|9d71c677db00134c1bd4144b7783486b654ad281b1ea62b4972098d19f770f17|-|-
+codex|0.145.0|codex|tar.gz|https://github.com/openai/codex/releases/download/rust-v0.145.0/codex-x86_64-unknown-linux-musl.tar.gz|bfaf13c9ba34f2ad764e4a916c49cf7177aeba329cf0f719e2227566fc8d662a|codex-x86_64-unknown-linux-musl|a2a05dafaa1acb002a45eaec0a462de5b13694fcfcd7bc43305f14781ce7be14
+herdr|0.7.5|herdr|binary|https://github.com/ogulcancelik/herdr/releases/download/v0.7.5/herdr-linux-x86_64|3dc83288073e4c2d3c679a30e7be97bcca9141c6fd17dbbb9219142e95c59253|-|-
+tea|0.8.0|tea|binary|https://dl.gitea.com/tea/0.8.0/tea-0.8.0-linux-amd64|8bc99e0532548365f3d86a5ec319772121a844d54a01cb51cddb030d05f27a0c|-|-

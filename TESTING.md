@@ -89,6 +89,10 @@ First inspect the non-mutating plan:
 ./scripts/debian-dev-headless-install.sh --dry-run
 ```
 
+This first preview uses only Debian base `awk`/`grep` validation and reports
+that full jq-dependent lock and ownership checks are deferred until
+`--verify-manifests` or the post-system user phase.
+
 Then run the system phase as root, the software phase as the unprivileged
 console user, initialize role data from the checkout, and apply separately:
 
@@ -101,23 +105,39 @@ CHEZMOI_ROLE=debian-dev-headless \
 chezmoi apply
 ```
 
-Homelab owns the Debian 13 stable/security APT sources, keyrings, DNS, network,
-SSH daemon, trust, mounts, and account. The system phase only refreshes that
-existing signed metadata, checks every declared package has a candidate, and
-additively installs package names from `packages.txt`; repository metadata
-therefore rolls with the trusted Debian sources rather than a dotfiles-owned
-snapshot.
+Homelab owns and validates the Debian 13/trixie stable, updates, and security
+APT sources, keyring, DNS, network, SSH daemon, trust, mounts, and account. It
+must issue `/etc/homelab/developer-console-apt-trust` for the current source
+and keyring state. The system phase refuses stale or missing trust, then
+refreshes signed metadata, checks every declared package has a candidate, and
+additively installs package names from `packages.txt`.
 
 User tools have exact identities: mise uses its committed strict lock, Bun
-uses its frozen lock, vendor downloads use committed versions and SHA-256
-digests, and 1Password requires both its release signature and the committed
-signing-key fingerprint. Reconciliation owns only its declared targets under
+uses its frozen lock, vendor downloads use committed artifact and payload
+SHA-256 digests, and 1Password requires its committed public key, exact valid
+signer, release signature, and payload identity. Reconciliation owns only its declared targets under
 `~/.local/bin` and leaves pre-existing container engines, tmux, zellij, and
 unrelated user binaries in place. Removing a declaration does not uninstall a
 package or delete retained credentials, instances, or volumes; cleanup is a
 separate, explicit operator action. The workflow installs CLI software and
 secretless configuration only—it never signs in to 1Password, GitHub,
 Cloudflare, or another service and never creates credentials.
+
+After software validation, manually create a unique SSH signing key for each
+console and configure only the unmanaged local include:
+
+```bash
+ssh-keygen -t ed25519 -f "$HOME/.ssh/id_ed25519_signing" \
+  -C "$(hostname)-git-signing"
+git config --file "$HOME/.gitconfig-local" gpg.format ssh
+git config --file "$HOME/.gitconfig-local" \
+  user.signingkey "$HOME/.ssh/id_ed25519_signing.pub"
+git config --file "$HOME/.gitconfig-local" commit.gpgsign true
+chmod 0600 "$HOME/.gitconfig-local"
+```
+
+The signing key and `.gitconfig-local` stay on the replaceable root filesystem
+and are neither managed by Chezmoi nor copied to retained storage.
 
 ## Continuous testing plan
 

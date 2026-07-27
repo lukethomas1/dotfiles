@@ -44,3 +44,7 @@
 	path = ~/.gitconfig-work
 [init]
 	defaultBranch = main
+{{- if .headless }}
+[include]
+	path = ~/.gitconfig-local
+{{- end }}

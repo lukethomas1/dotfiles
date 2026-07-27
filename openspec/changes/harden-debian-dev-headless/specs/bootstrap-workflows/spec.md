@@ -24,6 +24,12 @@ NOT claim to orchestrate this split workflow.
   companion installer
 - **THEN** it does not advertise or enter the Debian headless workflow
 
+#### Scenario: A minimal console previews installation
+- **WHEN** `--dry-run` runs before the system phase with only base validation
+  commands available
+- **THEN** it validates the platform and structural manifests, prints the full
+  plan, and explicitly defers full lock and inventory checks without mutation
+
 ### Requirement: Chezmoi initialization precedes apply
 A first Debian headless installation SHALL initialize the local checkout with
 `CHEZMOI_ROLE=debian-dev-headless` before a separate apply, and the documented

@@ -14,7 +14,7 @@ repository owns developer packages, unprivileged tools, and user configuration.
 The desired flow is:
 
 ```text
-homelab: Debian 13 + APT trust + account/access
+homelab: Debian 13 + attested APT trust + account/access
                          |
                          v
 local checkout --system (root, additive APT packages)
@@ -52,24 +52,32 @@ local checkout --system (root, additive APT packages)
 
 ## Decisions
 
-### 1. Homelab owns trust; this repository owns additive package selection
+### 1. Homelab attests trust; this repository owns additive package selection
 
-The system phase will delete its snapshot-source generation and rely on the
-signed Debian 13 APT configuration already present on the host. It will run
-`apt-get update`, verify a candidate for every package, then install the
-package-name manifest additively.
+The system phase will delete its snapshot-source generation and require a
+root-owned `/etc/homelab/developer-console-apt-trust` attestation for the
+signed Debian 13 APT configuration already present on the host. The attestation
+records its schema, role, operating system, rolling suites, and source/keyring
+state identities. The system phase rejects a stale or malformed attestation,
+runs `apt-get update`, verifies a candidate for every package, then installs
+the package-name manifest additively.
 
-This was chosen over a marker filename because homelab may organize source
-files without changing the trust contract. It was chosen over parsing origin
-text because APT signature enforcement and repository selection are homelab's
-authority. A frozen snapshot was rejected in favor of timely rolling
-stable/security updates.
+The attestation is a narrow cross-repository interface: homelab remains free to
+organize source files but must prove that the currently active source and
+keyring state still matches its policy. Parsing origin policy independently in
+both repositories was rejected because APT signature enforcement and
+repository selection are homelab's authority. A frozen snapshot was rejected
+in favor of timely rolling stable/security updates.
 
 ### 2. Exact pinning remains mandatory above the Debian package layer
 
 Mise, Bun, direct vendor downloads, 1Password, Antidote, and Zsh plugins remain
-exactly pinned. The 1Password key must match fingerprint
+exactly pinned. The committed 1Password public key must match fingerprint
 `3FEF9748469ADBE15DA7CA80AC2D62742012EA22` before its signature is trusted.
+Only regular `op` and `op.sig` archive members are streamed to private
+temporary files, and GPG `VALIDSIG` status must identify that fingerprint as
+the actual signer or primary key. The authenticated `op` payload also has a
+committed SHA-256 identity.
 
 Antidote will use commit `4913257e0ae3fee2a77e7189e526fe55b6ff9536`
 from a managed `.config/zsh/antidote.version`. Plugin declarations will use
@@ -83,7 +91,8 @@ Antidote's `pin:<SHA>` syntax with these known-working commits:
 
 Shell startup compares the local Antidote revision, fetches only when missing
 or mismatched, and degrades with a warning rather than breaking the shell when
-offline.
+offline. A portable adjacent lock serializes clone, fetch, and checkout so
+concurrent shells cannot nest or corrupt the checkout.
 
 ### 3. Native manifests replace the duplicate tool catalog
 
@@ -91,7 +100,9 @@ offline.
 `onepassword.env`, and Bun's `package.json` plus `bun.lock` are authoritative.
 `tool-catalog.tsv` and `debian-snapshot.env` are removed. Validation builds the
 inventory from native declarations and checks ownership and version agreement
-bidirectionally.
+bidirectionally. A small `required-commands.tsv` contains only functional group
+and command names; it independently proves the promised command floor without
+duplicating versions or installation ownership.
 
 A custom all-in-one manifest was rejected because it would require generating
 and reviewing native lock formats. Keeping the catalog was rejected because it
@@ -104,9 +115,12 @@ Full user/CI validation explicitly preflights commands such as `jq`, `rg`,
 `sha256sum`, and format-specific tools. Missing commands return nonzero; no
 `|| true` path may turn validator failure into success.
 
-Negative tests operate on copied fixtures so prohibited entries, malformed
-fields, unsafe archive members, duplicate owners, mismatched locks, and wrong
-fingerprints can be exercised without altering authoritative manifests.
+Negative tests operate on copied fixtures so missing required commands,
+malformed fields, unsafe archive members, duplicate owners, mismatched locks,
+wrong fingerprints, wrong signers, and wrong installed payloads can be
+exercised without altering authoritative manifests. Pre-system `--dry-run`
+uses only base validation, reports that full checks are deferred, and remains
+usable before `jq` is installed.
 
 ### 5. Headless deployment is an allowlist
 
@@ -116,16 +130,25 @@ only Bash, Zsh, pinned plugin metadata, Git, Neovim, Starship, Atuin, and Herdr
 configuration. All desktop, terminal-emulator, Obsidian, repository metadata,
 SSH, encrypted secret, and Age identity targets are excluded.
 
-An allowlist was selected over accumulating negative desktop exceptions because
-new source content must not silently expand a durable secretless console.
+The headless ignore template starts by ignoring every source target and then
+unignores only the approved roots and descendants. The managed-target test
+remains defense in depth. This was selected over accumulating negative desktop
+exceptions because new source content must not silently expand a durable
+secretless console.
+
+The managed Git configuration ends with an include of `~/.gitconfig-local`.
+The secretless baseline keeps signing disabled; manual enrollment creates a
+unique per-console SSH signing key and enables SSH signing only in that
+unmanaged root-local file.
 
 ### 6. Installer modes stay explicit
 
 The dedicated installer retains `--system`, `--user`, `--dry-run`, and
 `--verify-manifests`. The root and user phases reject the wrong effective user.
 The user phase prepends and directly verifies the managed local-bin path, uses
-one global temporary-directory trap, installs via temporary targets, and
-post-verifies versions before replacement.
+one global temporary-directory trap, rejects links and non-regular managed
+targets, verifies installed payload digests, installs via temporary targets,
+and post-verifies versions before replacement.
 
 The curl-capable main bootstrap removes its headless execution branch because
 it cannot supply companion manifests or perform the explicit privilege
@@ -145,8 +168,9 @@ only intentional cross-profile runtime change.
   responsible for image/root reproducibility and requires a follow-up spec
   clarification for pinned OpenSSH/Mosh language.
 - **Candidate-only checks trust homelab source selection** → Preserve exclusive
-  APT trust ownership and fail when Debian 13 or any required candidate is
-  absent; do not create a second source-policy authority here.
+  APT trust ownership, require its current state attestation, and fail when
+  Debian 13 or any required candidate is absent; do not create a second
+  source-policy authority here.
 - **First shell startup still needs network access** → Pin all Git identities,
   skip unavailable plugins with a clear warning, and keep the base shell usable.
 - **Additive reconciliation leaves removed software installed** → Avoid

@@ -23,6 +23,22 @@ and Herdr configuration.
 - **THEN** it is excluded from both secretless Debian roles
 
 #### Scenario: An unclassified target enters headless output
-- **WHEN** the Debian headless managed set contains a target outside the CLI
-  allowlist
-- **THEN** isolated managed-target validation fails before apply
+- **WHEN** a new source target is added without an explicit headless inclusion
+- **THEN** the rendered ignore policy excludes it and isolated managed-target
+  validation confirms that it cannot enter apply
+
+### Requirement: Console Git signing is enrolled outside managed content
+The managed Debian headless Git configuration SHALL include
+`~/.gitconfig-local` after its secretless unsigned defaults. Chezmoi SHALL NOT
+manage that local file or any SSH key, and manual enrollment SHALL enable SSH
+signing with a unique per-console key through the local include.
+
+#### Scenario: A console has not been enrolled
+- **WHEN** the headless role is first applied without a local include
+- **THEN** Git remains usable with commit signing disabled
+
+#### Scenario: A signing key is enrolled
+- **WHEN** the operator writes the local include with the console's SSH signing
+  public key and enables signing
+- **THEN** Git's effective configuration uses SSH signing without modifying the
+  Chezmoi-managed file

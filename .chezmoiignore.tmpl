@@ -79,13 +79,25 @@ assets/**
 .local
 {{ end }}
 
-# Durable headless Debian is an explicit CLI allowlist. The managed-target test
-# fails if future source content expands this set without a reviewed decision.
+# Durable headless Debian ignores every target first, then admits only the
+# reviewed CLI roots and descendants. The managed-target test is defense in
+# depth rather than the enforcement boundary.
 {{ if $headless }}
-.config/aerospace/**
-.config/ghostty/**
-.config/niri/**
-.config/noctalia/**
-.Documents
-.local
+*
+!.bashrc
+!.zshrc
+!.zsh_plugins.txt
+!.gitconfig
+!.config
+!.config/
+.config/**
+!.config/zsh
+!.config/zsh/**
+!.config/nvim
+!.config/nvim/**
+!.config/starship.toml
+!.config/atuin
+!.config/atuin/**
+!.config/herdr
+!.config/herdr/**
 {{ end }}
