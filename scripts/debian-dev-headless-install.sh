@@ -846,9 +846,11 @@ mise_version_output() {
     go) "${local_bin}/mise" exec -- go version ;;
     kubectl) "${local_bin}/mise" exec -- kubectl version --client ;;
     helm) "${local_bin}/mise" exec -- helm version --short ;;
+    kustomize) "${local_bin}/mise" exec -- kustomize version ;;
     talosctl) "${local_bin}/mise" exec -- talosctl version --client ;;
     cilium) "${local_bin}/mise" exec -- cilium version --client ;;
     dagger) "${local_bin}/mise" exec -- dagger version ;;
+    cosign) "${local_bin}/mise" exec -- cosign version ;;
     gitleaks) "${local_bin}/mise" exec -- gitleaks version ;;
     *) "${local_bin}/mise" exec -- "$command_name" --version ;;
   esac 2>&1
