@@ -640,6 +640,9 @@ HOME="$user_home" PATH="${user_bin}:/usr/bin:/bin" \
   "$user_installer" --user
 cmp "${artifacts}/mise-good" "${user_home}/.local/bin/mise"
 cmp "${artifacts}/codex-good" "${user_home}/.local/bin/codex"
+cmp "${user_fixture}/mise.lock" "${user_home}/.config/mise/mise.lock"
+[[ ! -e "${user_home}/.config/mise/config.lock" ]] ||
+  fail 'Mise lock was installed under an ignored filename'
 [[ "$(readlink "${user_home}/.local/bin/fd")" = "${compat_bin}/fdfind" ]] ||
   fail 'fd compatibility link trusted a PATH-shadowing command'
 [[ "$(readlink "${user_home}/.local/bin/bat")" = "${compat_bin}/batcat" ]] ||

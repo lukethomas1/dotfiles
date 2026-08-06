@@ -827,7 +827,7 @@ fi
 
 mkdir -p "${HOME}/.config/mise"
 install -m644 "${role_dir}/mise.toml" "${HOME}/.config/mise/config.toml"
-install -m644 "${role_dir}/mise.lock" "${HOME}/.config/mise/config.lock"
+install -m644 "${role_dir}/mise.lock" "${HOME}/.config/mise/mise.lock"
 "${local_bin}/mise" install --locked
 
 mise_version_output() {
