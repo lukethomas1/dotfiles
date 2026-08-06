@@ -520,7 +520,9 @@ user_root="${test_root}/user-reconciliation"
 user_home="${user_root}/home"
 user_bin="${user_root}/bin"
 artifacts="${user_root}/artifacts"
-mkdir -p "${user_home}/.local/bin" "$user_bin" "$artifacts"
+mkdir -p "${user_home}/.local/bin" "${user_home}/.config/mise" \
+  "$user_bin" "$artifacts"
+cp "${user_fixture}/mise.lock" "${user_home}/.config/mise/config.lock"
 
 cat >"${artifacts}/mise-good" <<'EOF'
 #!/usr/bin/env bash

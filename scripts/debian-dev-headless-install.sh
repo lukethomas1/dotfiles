@@ -645,7 +645,7 @@ fi
   die '--user refuses root; user-owned tools must remain unprivileged'
 
 verify_full_manifests
-require_commands chmod curl dpkg-query gpg grep install ln mkdir mktemp mv rm sha256sum tar unzip zipinfo
+require_commands chmod cmp curl dpkg-query gpg grep install ln mkdir mktemp mv rm sha256sum tar unzip zipinfo
 
 while IFS= read -r package; do
   case "$package" in ''|'#'*) continue ;; esac
@@ -826,6 +826,16 @@ if ! installed_command_matches \
 fi
 
 mkdir -p "${HOME}/.config/mise"
+legacy_mise_lock="${HOME}/.config/mise/config.lock"
+if [ -L "${legacy_mise_lock}" ] ||
+  { [ -e "${legacy_mise_lock}" ] && [ ! -f "${legacy_mise_lock}" ]; }; then
+  die "legacy Mise lock path is not a regular file: ${legacy_mise_lock}"
+fi
+if [ -f "${legacy_mise_lock}" ]; then
+  cmp -- "${role_dir}/mise.lock" "${legacy_mise_lock}" >/dev/null ||
+    die "legacy Mise lock differs from the committed lock: ${legacy_mise_lock}"
+  rm -f -- "${legacy_mise_lock}"
+fi
 install -m644 "${role_dir}/mise.toml" "${HOME}/.config/mise/config.toml"
 install -m644 "${role_dir}/mise.lock" "${HOME}/.config/mise/mise.lock"
 "${local_bin}/mise" install --locked
