@@ -27,6 +27,12 @@ and Herdr configuration.
 - **THEN** the rendered ignore policy excludes it and isolated managed-target
   validation confirms that it cannot enter apply
 
+#### Scenario: A headless Bash entry invokes managed tools
+- **WHEN** an interactive session starts or a non-interactive remote command
+  sources the managed `.bashrc`
+- **THEN** `~/.local/bin` and the locked Mise shims are available before the
+  interactive-only shell configuration boundary
+
 ### Requirement: Console Git signing is enrolled outside managed content
 The managed Debian headless Git configuration SHALL include
 `~/.gitconfig-local` after its secretless unsigned defaults. Chezmoi SHALL NOT

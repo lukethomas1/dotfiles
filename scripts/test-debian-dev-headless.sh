@@ -210,6 +210,26 @@ HOME="${headless_root}/home" XDG_CONFIG_HOME="${headless_root}/config" \
   CHEZMOI_ROLE=debian-dev-headless \
   "${headless_cmd[@]}" verify --no-tty --refresh-externals=never
 
+bash -n "${headless_root}/home/.bashrc"
+install -d -m 0700 \
+  "${headless_root}/home/.local/bin" \
+  "${headless_root}/home/.local/share/mise/shims"
+cat >"${headless_root}/home/.local/bin/mise" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1-}" == activate && "${2-}" == bash ]]
+printf 'export PATH="%s/.local/share/mise/shims:$PATH"\n' "$HOME"
+EOF
+cat >"${headless_root}/home/.local/share/mise/shims/pulumi" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+chmod 0700 \
+  "${headless_root}/home/.local/bin/mise" \
+  "${headless_root}/home/.local/share/mise/shims/pulumi"
+HOME="${headless_root}/home" bash --noprofile --norc -c \
+  'set -e; source "$HOME/.bashrc"; command -v mise >/dev/null; command -v pulumi >/dev/null'
+
 grep -Fq $'path = ~/.gitconfig-local' "${headless_root}/home/.gitconfig" ||
   fail 'headless Git config does not include the unmanaged local enrollment file'
 printf '%s\n' \

@@ -50,8 +50,8 @@
 
 - [x] 7.1 Run `git diff --check`, Bash syntax checks, all isolated and negative tests, apply-twice verification, and strict OpenSpec validation.
 - [x] 7.2 Resolve official Arch package names with `pacman -Sp` if implementation changes any Arch package manifest. (Not applicable: no Arch package manifest changed.)
-- [ ] 7.3 Run the documented system and user phases in a disposable Debian 13 console with homelab-provided APT trust and record sanitized package and command-version evidence.
-- [ ] 7.4 Initialize and apply the role only in the disposable console, verify the exact secretless CLI target set, and document rollback without deleting packages, credentials, instances, or retained volumes.
+- [x] 7.3 Run the documented system and user phases in a disposable Debian 13 console with homelab-provided APT trust and record sanitized package and command-version evidence.
+- [x] 7.4 Initialize and apply the role only in the disposable console, verify the exact secretless CLI target set, and document rollback without deleting packages, credentials, instances, or retained volumes.
 - [x] 7.5 Reconcile the homelab developer-console change with rolling Debian trust, the APT attestation, unique Git signing enrollment, and unrestricted reviewed tool ownership.
 - [x] 7.6 Run adversarial deletion, wrong-payload, signer, ZIP, minimal dry-run, Git include, allowlist, and Antidote concurrency tests plus strict OpenSpec validation.
 

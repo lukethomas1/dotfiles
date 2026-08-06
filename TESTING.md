@@ -109,6 +109,11 @@ CHEZMOI_ROLE=debian-dev-headless \
 chezmoi apply
 ```
 
+The managed headless `.bashrc` exposes `~/.local/bin` and the locked Mise
+shims before its interactive-only boundary. Remote automation that starts Bash
+without reading `.bashrc` must source it explicitly before invoking the managed
+tool catalog.
+
 Homelab owns and validates the Debian 13/trixie stable, updates, and security
 APT sources, keyring, DNS, network, SSH daemon, trust, mounts, and account. It
 must issue `/etc/homelab/developer-console-apt-trust` for the current source
