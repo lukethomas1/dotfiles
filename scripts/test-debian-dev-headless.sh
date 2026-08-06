@@ -425,18 +425,18 @@ printf '%s\n' \
   'URIs: https://deb.debian.org/debian' \
   'Suites: trixie trixie-updates' \
   'Components: main' \
-  'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+  'Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp' \
   '' \
   'Types: deb' \
   'URIs: https://security.debian.org/debian-security' \
   'Suites: trixie-security' \
   'Components: main' \
-  'Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg' \
+  'Signed-By: /usr/share/keyrings/debian-archive-keyring.pgp' \
   >"${apt_root}/etc/apt/sources.list.d/debian.sources"
 printf 'fixture Debian archive keyring\n' \
-  >"${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg"
+  >"${apt_root}/usr/share/keyrings/debian-archive-keyring.pgp"
 source_sha="$(sha256sum "${apt_root}/etc/apt/sources.list.d/debian.sources")"
-keyring_sha="$(sha256sum "${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg")"
+keyring_sha="$(sha256sum "${apt_root}/usr/share/keyrings/debian-archive-keyring.pgp")"
 apt_config_sha="$(
   {
     printf 'etc/apt/sources.list.d/debian.sources|%s\n' "${source_sha%% *}"

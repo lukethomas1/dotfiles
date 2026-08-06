@@ -519,7 +519,7 @@ verify_apt_trust_attestation() {
   apt_root="$1"
   trust_file="${apt_root}/etc/homelab/developer-console-apt-trust"
   source_file="${apt_root}/etc/apt/sources.list.d/debian.sources"
-  keyring_file="${apt_root}/usr/share/keyrings/debian-archive-keyring.gpg"
+  keyring_file="${apt_root}/usr/share/keyrings/debian-archive-keyring.pgp"
 
   [ -f "$trust_file" ] && [ ! -L "$trust_file" ] ||
     die "homelab APT trust attestation is missing or unsafe: ${trust_file}"
