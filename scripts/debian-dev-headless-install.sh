@@ -55,7 +55,13 @@ else
 fi
 local_bin="${HOME}/.local/bin"
 debian_fd_target=/usr/bin/fdfind
+debian_fd_link_target=../lib/cargo/bin/fd
+debian_fd_resolved_target=/usr/lib/cargo/bin/fd
+debian_fd_package=fd-find
 debian_bat_target=/usr/bin/batcat
+debian_bat_link_target=-
+debian_bat_resolved_target=/usr/bin/batcat
+debian_bat_package=bat
 temp_root=
 staged_path=
 
@@ -920,12 +926,33 @@ done
 reconcile_debian_compatibility_link() {
   local command_name="$1"
   local trusted_target="$2"
+  local expected_link_target="$3"
+  local expected_resolved_target="$4"
+  local expected_package="$5"
   local destination="${local_bin}/${command_name}"
-  local current_target
+  local current_target resolved_target package_owner
 
-  [ -f "$trusted_target" ] && [ ! -L "$trusted_target" ] &&
-    [ -x "$trusted_target" ] ||
-    die "trusted Debian compatibility target is missing or unsafe: ${trusted_target}"
+  if [ "$expected_link_target" = - ]; then
+    [ -f "$trusted_target" ] && [ ! -L "$trusted_target" ] ||
+      die "trusted Debian compatibility target is missing or unsafe: ${trusted_target}"
+  else
+    [ -L "$trusted_target" ] &&
+      [ "$(readlink "$trusted_target")" = "$expected_link_target" ] ||
+      die "trusted Debian compatibility link differs: ${trusted_target}"
+  fi
+  resolved_target="$(readlink -f "$trusted_target")"
+  [ "$resolved_target" = "$expected_resolved_target" ] &&
+    [ -f "$resolved_target" ] && [ ! -L "$resolved_target" ] &&
+    [ -x "$resolved_target" ] ||
+    die "trusted Debian compatibility payload is missing or unsafe: ${trusted_target}"
+  package_owner="$(dpkg-query -S -- "$trusted_target" 2>/dev/null)" ||
+    die "trusted Debian compatibility path is not package-owned: ${trusted_target}"
+  [ "$package_owner" = "${expected_package}: ${trusted_target}" ] ||
+    die "trusted Debian compatibility path has the wrong package owner: ${trusted_target}"
+  package_owner="$(dpkg-query -S -- "$resolved_target" 2>/dev/null)" ||
+    die "trusted Debian compatibility payload is not package-owned: ${resolved_target}"
+  [ "$package_owner" = "${expected_package}: ${resolved_target}" ] ||
+    die "trusted Debian compatibility payload has the wrong package owner: ${resolved_target}"
 
   if [ -L "$destination" ]; then
     current_target="$(readlink "$destination")"
@@ -948,7 +975,11 @@ reconcile_debian_compatibility_link() {
 }
 
 require_commands readlink
-reconcile_debian_compatibility_link fd "$debian_fd_target"
-reconcile_debian_compatibility_link bat "$debian_bat_target"
+reconcile_debian_compatibility_link \
+  fd "$debian_fd_target" "$debian_fd_link_target" \
+  "$debian_fd_resolved_target" "$debian_fd_package"
+reconcile_debian_compatibility_link \
+  bat "$debian_bat_target" "$debian_bat_link_target" \
+  "$debian_bat_resolved_target" "$debian_bat_package"
 
 echo 'debian-dev-headless software reconciliation complete; credentials remain unenrolled'

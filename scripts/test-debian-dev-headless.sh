@@ -504,7 +504,10 @@ chmod +x "${compat_bin}/fdfind" "${compat_bin}/batcat"
 cp "$installer" "$user_installer"
 sed -i \
   -e "s#^debian_fd_target=/usr/bin/fdfind\$#debian_fd_target=${compat_bin}/fdfind#" \
+  -e 's#^debian_fd_link_target=../lib/cargo/bin/fd$#debian_fd_link_target=-#' \
+  -e "s#^debian_fd_resolved_target=/usr/lib/cargo/bin/fd\$#debian_fd_resolved_target=${compat_bin}/fdfind#" \
   -e "s#^debian_bat_target=/usr/bin/batcat\$#debian_bat_target=${compat_bin}/batcat#" \
+  -e "s#^debian_bat_resolved_target=/usr/bin/batcat\$#debian_bat_resolved_target=${compat_bin}/batcat#" \
   "$user_installer"
 bash -n "$user_installer"
 export DEBIAN_DEV_HEADLESS_SOURCE_DIR="$source_dir"
@@ -629,7 +632,18 @@ esac
 EOF
 cat >"${user_bin}/dpkg-query" <<'EOF'
 #!/usr/bin/env bash
-printf 'ii \n'
+if [ "${1:-}" = -S ]; then
+  shift
+  [ "${1:-}" = -- ] && shift
+  case "${1##*/}" in
+    fdfind) package=fd-find ;;
+    batcat) package=bat ;;
+    *) exit 1 ;;
+  esac
+  printf '%s: %s\n' "$package" "$1"
+else
+  printf 'ii \n'
+fi
 EOF
 chmod +x "${user_bin}/curl" "${user_bin}/dpkg-query"
 
