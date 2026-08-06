@@ -303,13 +303,14 @@ mise_command_for_key() {
     aqua:atuinsh/atuin) echo atuin ;;
     aqua:eza-community/eza) echo eza ;;
     aqua:ajeetdsouza/zoxide) echo zoxide ;;
+    aqua:twpayne/chezmoi) echo chezmoi ;;
     *) return 1 ;;
   esac
 }
 
 package_command_for_name() {
   case "$1" in
-    bash|zsh|curl|git|mosh|rsync|tar|zip|unzip|openssl|sqlite3|make|traceroute|jq|yq|chezmoi|direnv|fzf|age|restic)
+    bash|zsh|curl|git|mosh|rsync|tar|zip|unzip|openssl|sqlite3|make|traceroute|jq|yq|direnv|fzf|age|restic)
       printf '%s\n' "$1"
       ;;
     git-lfs) echo git-lfs ;;
@@ -317,7 +318,7 @@ package_command_for_name() {
     xz-utils) echo xz ;;
     gnupg) echo gpg ;;
     pkg-config) echo pkg-config ;;
-    dnsutils) echo dig ;;
+    bind9-dnsutils) echo dig ;;
     iproute2) echo ip ;;
     iputils-ping) echo ping ;;
     netcat-openbsd) echo nc ;;

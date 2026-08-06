@@ -21,14 +21,13 @@ sqlite3
 build-essential
 make
 pkg-config
-dnsutils
+bind9-dnsutils
 iproute2
 iputils-ping
 netcat-openbsd
 traceroute
 jq
 yq
-chezmoi
 direnv
 ripgrep
 fd-find

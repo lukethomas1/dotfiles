@@ -199,6 +199,16 @@ checksum = "sha256:b7c232b0e8249d8e55a40beb79c5c43a7d370f3f9408bd215deb0170daeaa
 url = "https://github.com/starship/starship/releases/download/v1.26.0/starship-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/starship/starship/releases/assets/460374630"
 
+[[tools."aqua:twpayne/chezmoi"]]
+version = "2.71.0"
+backend = "aqua:twpayne/chezmoi"
+
+[tools."aqua:twpayne/chezmoi"."platforms.linux-x64"]
+checksum = "sha256:6ea2040ecc0e82d3dac604289e100b0157afefcd94ebb818e5f6e31655156d34"
+url = "https://github.com/twpayne/chezmoi/releases/download/v2.71.0/chezmoi_2.71.0_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/twpayne/chezmoi/releases/assets/469677724"
+provenance = "cosign"
+
 [[tools.bun]]
 version = "1.3.14"
 backend = "core:bun"
