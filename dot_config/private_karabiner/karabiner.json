@@ -6,6 +6,19 @@
   },
   "profiles": [
     {
+      "devices": [
+        {
+          "identifiers": {
+            "is_game_pad": true,
+            "is_keyboard": true,
+            "is_pointing_device": true,
+            "product_id": 4192,
+            "vendor_id": 13364
+          },
+          "ignore": false,
+          "manipulate_caps_lock_led": true
+        }
+      ],
       "complex_modifications": {
         "parameters": {
           "basic.to_if_alone_timeout_milliseconds": 250
