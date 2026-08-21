@@ -27,7 +27,7 @@ typeset -U path                      # dedupe PATH entries
 path=("$HOME/.local/bin" $path)
 export PATH
 
-{{ if .headless -}}
+{{ if eq .role "debian-dev-headless" -}}
 # The durable headless role owns developer runtimes through its locked mise
 # manifest. Node is compatibility runtime only; Bun owns JavaScript packages.
 if [[ -x "$HOME/.local/bin/mise" ]]; then
@@ -265,7 +265,7 @@ fi
 command -v atuin    >/dev/null && eval "$(atuin init zsh)"       # binds ctrl-r + up
 command -v starship >/dev/null && eval "$(starship init zsh)"
 command -v zoxide   >/dev/null && eval "$(zoxide init zsh)"
-{{ if not .secretless -}}
+{{ if not (or (eq .role "container") (eq .role "debian-dev-headless")) -}}
 export CARAPACE_BRIDGES='zsh,bash,inshellisense'
 command -v carapace >/dev/null && source <(carapace _carapace zsh)
 {{ end -}}

@@ -2,6 +2,9 @@
 # through Shelly's AUR support during bootstrap.
 carapace-bin
 1password
+# NordVPN's official Linux CLI, packaged for Arch through the AUR. The daemon
+# and local-user access are configured by the Arch bootstrap path.
+nordvpn-bin
 # Terminal multiplexer for coordinating coding agents. The package installs
 # the vendor-provided binary and exposes it as `herdr`.
 herdr-bin

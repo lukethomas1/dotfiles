@@ -348,6 +348,26 @@ install_arch_1password_cli() {
   fi
 }
 
+configure_arch_nordvpn() {
+  local username="$1"
+
+  if ! command -v nordvpn >/dev/null; then
+    echo "WARN: NordVPN CLI was not installed; skipping NordVPN daemon setup." >&2
+    return
+  fi
+
+  echo "Enabling NordVPN daemon..."
+  sudo systemctl enable --now nordvpnd
+
+  if id -nG "${username}" | tr ' ' '\n' | grep -qx nordvpn; then
+    echo "${username} is already in the nordvpn group."
+  else
+    echo "Adding ${username} to the nordvpn group..."
+    sudo usermod -aG nordvpn "${username}"
+    echo "Log out and back in before using the NordVPN CLI."
+  fi
+}
+
 print_dry_run_plan() {
   local role="$1"
   local source_dir
@@ -368,8 +388,8 @@ print_dry_run_plan() {
       echo "  ensure /bin/zsh is the login shell"
       ;;
     arch)
-      echo "  shelly upgrade --no-confirm (only if confirmed)"
-      echo "  shelly install --no-confirm chezmoi age"
+      echo "  shelly upgrade standard --no-confirm (only if confirmed)"
+      echo "  shelly install standard --no-confirm chezmoi age"
       ;;
     fedora)
       if ! command -v chezmoi >/dev/null; then
@@ -412,9 +432,13 @@ print_dry_run_plan() {
       echo "  retire any unmanaged ~/.config/ghostty/config"
       ;;
     arch)
-      dry_run_manifest "shelly install --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
+      dry_run_manifest "shelly install standard --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
       echo "  import the 1Password signing key when 1password is declared"
-      dry_run_manifest "shelly aur install" "${source_dir}/pkg/arch/aur-desktop.txt"
+      dry_run_manifest "shelly install aur" "${source_dir}/pkg/arch/aur-desktop.txt"
+      if grep -qx 'nordvpn-bin' "${source_dir}/pkg/arch/aur-desktop.txt"; then
+        echo "  sudo systemctl enable --now nordvpnd"
+        echo "  sudo usermod -aG nordvpn <current user> (when needed; log out and back in)"
+      fi
       if [ -f "${source_dir}/pkg/arch/1password-cli.version" ]; then
         onepassword_cli_version="$(tr -d '[:space:]' < "${source_dir}/pkg/arch/1password-cli.version")"
         echo "  install signed 1Password CLI ${onepassword_cli_version} in /usr/local/bin/op"
@@ -493,13 +517,13 @@ case "$OS" in
       read -r -p "Run a full CachyOS system upgrade now? [y/N] " upgrade_response || true
       case "${upgrade_response:-}" in
         y|Y|yes|YES)
-          shelly upgrade --no-confirm
+          shelly upgrade standard --no-confirm
           ;;
         *)
           echo "Skipping full system upgrade."
           ;;
       esac
-      shelly install --no-confirm chezmoi age
+      shelly install standard --no-confirm chezmoi age
       export CHEZMOI_ROLE="arch"
     elif grep -q 'cosmic-atomic\|rpm-ostree' /etc/os-release 2>/dev/null; then
       # Fedora COSMIC Atomic (or other rpm-ostree immutable desktops)
@@ -582,8 +606,11 @@ if [ "${CHEZMOI_ROLE}" = "macos" ]; then
   fi
 elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
   echo "Installing Arch host packages..."
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
-    "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt" | xargs shelly install --no-confirm
+  mapfile -t arch_packages < <(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+      "$(chezmoi source-path)/pkg/arch/pacman-desktop.txt"
+  )
+  shelly install standard --no-confirm "${arch_packages[@]}"
   echo "Installing Arch host AUR packages..."
   # The official 1Password AUR package verifies vendor-signed downloads. Import
   # its documented signing key before Shelly invokes makepkg.
@@ -591,8 +618,15 @@ elif [ "${CHEZMOI_ROLE}" = "arch" ]; then
     curl -fsSL https://downloads.1password.com/linux/keys/1password.asc | \
       gpg --batch --import
   fi
-  sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
-    "$(chezmoi source-path)/pkg/arch/aur-desktop.txt" | xargs shelly aur install
+  mapfile -t arch_aur_packages < <(
+    sed '/^[[:space:]]*#/d; /^[[:space:]]*$/d' \
+      "$(chezmoi source-path)/pkg/arch/aur-desktop.txt"
+  )
+  # Do not pipe this through xargs: its child receives no interactive stdin,
+  # which makes Shelly decline PKGBUILD review prompts on EOF.
+  shelly install aur "${arch_aur_packages[@]}"
+
+  configure_arch_nordvpn "${USER}"
 
   install_arch_1password_cli "$(chezmoi source-path)"
 

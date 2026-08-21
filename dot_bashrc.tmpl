@@ -2,7 +2,7 @@
 # ~/.bashrc
 #
 
-{{ if .headless -}}
+{{ if eq .role "debian-dev-headless" -}}
 # Make the pinned headless toolchain available to interactive sessions and to
 # remote non-interactive commands that source ~/.bashrc.
 export PATH="$HOME/.local/bin:$PATH"
