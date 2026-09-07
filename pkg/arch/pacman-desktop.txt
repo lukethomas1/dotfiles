@@ -1,12 +1,17 @@
 # Reproducible CachyOS host baseline. Keep language runtimes, SDKs, container
 # engines, and project tooling in MicroVM development environments.
 age
+# Application menu integration for GTK applications.
+appmenu-gtk-module
 atuin
 bat
 btop
 # Intentional desktop exception: e-book library management.
 calibre
 chezmoi
+# Intentional desktop exception: build and headless-X tooling used by local
+# desktop integrations.
+cmake
 eza
 fastfetch
 fd
@@ -24,10 +29,14 @@ incus
 keychain
 kubectl
 lazygit
+libappindicator-gtk3
 neovim
+ninja
 niri
 noctalia-qs
 noctalia-shell
+# Intentional desktop exception: RGB lighting control for CachyOS Niri/Noctalia.
+openrgb
 openssh
 ripgrep
 shelly
@@ -38,6 +47,8 @@ tailscale
 ttf-jetbrains-mono
 uv
 wl-clipboard
+xdotool
+xorg-server-xvfb
 yamllint
 yq
 zellij

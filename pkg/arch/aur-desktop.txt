@@ -8,3 +8,5 @@ nordvpn-bin
 # Terminal multiplexer for coordinating coding agents. The package installs
 # the vendor-provided binary and exposes it as `herdr`.
 herdr-bin
+# Release Effects plugin for packaged OpenRGB (keep plugin APIs compatible).
+openrgb-plugin-effects
