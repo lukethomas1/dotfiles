@@ -46,6 +46,9 @@ talosctl
 tailscale
 ttf-jetbrains-mono
 uv
+# AppImage support and Wayland paste integration for desktop apps.
+fuse2
+wtype
 wl-clipboard
 xdotool
 xorg-server-xvfb
