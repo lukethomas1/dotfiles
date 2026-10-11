@@ -62,6 +62,12 @@ assets/**
 .config/karabiner/**
 {{ end }}
 
+# OpenWhispr's Niri launcher and desktop entry belong to the Arch workstation.
+{{ if ne $role "arch" }}
+.local/bin/openwhispr-niri
+.local/share/applications/openwhispr.desktop
+{{ end }}
+
 # Fedora COSMIC Atomic owns neither AeroSpace nor the Arch compositor stack.
 {{ if eq $role "fedora" }}
 .config/aerospace/**

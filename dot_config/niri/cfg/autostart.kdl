@@ -3,5 +3,9 @@
 
 spawn-sh-at-startup "qs -c noctalia-shell"
 
+// OpenWhispr exposes its native D-Bus toggle in GNOME mode; the wrapper enables
+// that endpoint and OpenWhispr's wtype paste path for this Niri session.
+spawn-sh-at-startup "~/.local/bin/openwhispr-niri"
+
 // Desktop RGB: restore the qualified scene when the local integration is installed.
 spawn-sh-at-startup "if test -x ~/.local/bin/megatron-rgb; then exec ~/.local/bin/megatron-rgb --minimized; fi"

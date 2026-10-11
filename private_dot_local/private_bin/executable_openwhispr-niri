@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+appimage="${HOME}/.local/opt/openwhispr/OpenWhispr.AppImage"
+if [[ ! -x "${appimage}" ]]; then
+  printf 'OpenWhispr AppImage not found or not executable: %s\n' "${appimage}" >&2
+  exit 127
+fi
+
+# OpenWhispr 1.10.2 only initializes its D-Bus hotkey service in GNOME mode and
+# does not identify Niri as wlroots. Niri calls the exported Toggle method, while
+# the dummy SWAYSOCK marker enables the app's wtype paste path without input access.
+export XDG_CURRENT_DESKTOP=GNOME
+export SWAYSOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/openwhispr-niri-wlroots.sock"
+
+# Run the Electron window through XWayland so OpenWhispr can position its
+# floating voice indicator; clipboard and text injection still use Wayland tools.
+exec "${appimage}" --ozone-platform=x11 "$@"
