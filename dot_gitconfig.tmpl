@@ -3,7 +3,9 @@
 	email = lukethethomas@gmail.com
 {{- if eq .role "arch" }}
 	signingkey = ~/.ssh/id_ed25519.pub
-{{- else if not (or (eq .role "container") (eq .role "debian-dev-headless")) }}
+{{- else if eq .role "macos" }}
+	signingkey = 1760C809D5A959A3
+{{- else if eq .role "fedora" }}
 	signingkey = FEF953F3FC13A7EB
 {{- end }}
 [commit]
