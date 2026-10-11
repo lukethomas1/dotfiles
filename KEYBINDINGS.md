@@ -150,11 +150,12 @@ column), and `Mod+Home`/`Mod+End` (first/last column) are Arch-only.
 `openwhispr-niri` launcher so it exports that method and uses the Wayland `wtype`
 paste path; this avoids granting raw input-device access.
 
-**Ghostty's `ctrl+h` / `ctrl+w` / `ctrl+l` were removed on both hosts.** They
-drove Ghostty's own splits, which herdr replaced, while costing three standard
-terminal keys: Ctrl+H (Backspace), Ctrl+W (kill-word) and Ctrl+L (clear-screen).
-Clear-screen mattered: Cmd+K now belongs to herdr, so Ctrl+L was the only one
-left.
+**Ghostty's `ctrl+h` / `ctrl+w` / `ctrl+l` split bindings are removed on both
+hosts.** They drove Ghostty's own splits, which herdr replaced, while costing
+three standard terminal keys: Ctrl+H (Backspace), Ctrl+W (kill-word) and Ctrl+L
+(clear-screen). Clear-screen mattered: Cmd+K now belongs to herdr, so Ctrl+L
+was the only one left. Ctrl+D is ignored by Ghostty so it cannot send EOF to
+the shell and close the herdr session by accident.
 
 **herdr `[keys]` values are arrays, on purpose.** A bare string *replaces*
 herdr's default binding rather than adding to it. The arrays keep the `prefix+…`
