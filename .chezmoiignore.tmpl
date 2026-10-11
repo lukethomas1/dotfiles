@@ -16,6 +16,7 @@
 
 # Non-dotfile repo contents
 README.md
+OPENWHISPR-NIRI.md
 NEW-MAC-SETUP.md
 KEYBINDINGS.md
 TESTING.md
@@ -62,9 +63,10 @@ assets/**
 .config/karabiner/**
 {{ end }}
 
-# OpenWhispr's Niri launcher and desktop entry belong to the Arch workstation.
+# OpenWhispr's Niri integration belongs to the Arch workstation.
 {{ if ne $role "arch" }}
 .local/bin/openwhispr-niri
+.local/libexec/openwhispr-niri
 .local/share/applications/openwhispr.desktop
 {{ end }}
 

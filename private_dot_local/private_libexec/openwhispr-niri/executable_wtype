@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -eq 6 && "$1" == "-M" && "$2" == "shift" && "$3" == "-k" && "$4" == "Insert" && "$5" == "-m" && "$6" == "shift" ]]; then
+  # OpenWhispr uses Shift+Insert when it cannot identify a native Wayland window.
+  focused_app_id="$(
+    niri msg --json focused-window 2>/dev/null |
+      sed -nE 's/.*"app_id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' |
+      head -n 1 || true
+  )"
+
+  case "${focused_app_id,,}" in
+    *konsole*|*gnome-terminal*|*terminal*|*kitty*|*alacritty*|*terminator*|*xterm*|*urxvt*|*rxvt*|*tilix*|*terminology*|*wezterm*|*ghostty*|*foot*|st|st-*|*.st|*yakuake*|*guake*|*tilda*|*hyper*|*tabby*|*sakura*|*warp*|*termius*|*waveterm*|*ptyxis*|*kgx*|*org.gnome.console*)
+      ;;
+    "")
+      ;;
+    *)
+      exec /usr/bin/wtype -M ctrl -k v -m ctrl
+      ;;
+  esac
+fi
+
+exec /usr/bin/wtype "$@"

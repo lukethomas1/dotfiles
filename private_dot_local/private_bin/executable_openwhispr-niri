@@ -12,7 +12,7 @@ fi
 # the dummy SWAYSOCK marker enables the app's wtype paste path without input access.
 export XDG_CURRENT_DESKTOP=GNOME
 export SWAYSOCK="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/openwhispr-niri-wlroots.sock"
+export PATH="${HOME}/.local/libexec/openwhispr-niri:${PATH}"
 
-# Run the Electron window through XWayland so OpenWhispr can position its
-# floating voice indicator; clipboard and text injection still use Wayland tools.
-exec "${appimage}" --ozone-platform=x11 "$@"
+# Use Electron's native Wayland backend.
+exec "${appimage}" --ozone-platform=wayland "$@"
