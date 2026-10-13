@@ -1,0 +1,10 @@
+# Work-only packages, installed on top of Brewfile when chezmoi data has
+# work = true (set once with CHEZMOI_WORK=1; see NEW-MAC-SETUP.md).
+tap "coder/coder"
+tap "derailed/k9s"
+tap "ekristen/tap"
+tap "hashicorp/tap"
+brew "coder/coder/coder"
+brew "derailed/k9s/k9s"
+brew "ekristen/tap/aws-nuke"
+brew "hashicorp/tap/terraform"

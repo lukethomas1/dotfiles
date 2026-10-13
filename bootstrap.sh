@@ -68,8 +68,12 @@ KARABINER_ROOTONLY="/Library/Application Support/org.pqrs/tmp/rootonly"
 #
 # ps is used rather than pgrep because pgrep has also been seen failing here with
 # "sysmon request failed: sysmond service not found".
+#
+# Not `grep -q`: it exits at the first match, ps then dies of SIGPIPE writing the
+# rest of its (~50KB) output, and under `set -o pipefail` that failure becomes the
+# pipeline's status — reporting "not loaded" for a driver that is running.
 karabiner_driver_running() {
-  ps -Ao command 2>/dev/null | grep -q '[K]arabiner-DriverKit-VirtualHIDDevice\.dext'
+  ps -Ao command 2>/dev/null | grep '[K]arabiner-DriverKit-VirtualHIDDevice\.dext' >/dev/null
 }
 
 # Is Karabiner's privileged daemon alive?
@@ -205,15 +209,10 @@ EOF
            If nothing is listed, quit and relaunch Karabiner-Elements to
            re-register the daemons, then look again.
 EOF
-    elif ! karabiner_profile_loaded; then
-      blockers=$((blockers + 1))
-      cat <<'EOF'
-
-  [ ] Karabiner is running but has not loaded our profile — it fell back to its
-      built-in one, so Caps Lock is not remapped.
-      Fix: quit and relaunch Karabiner-Elements. If it persists, restart.
-EOF
     fi
+    # Our "Default" profile is not checked here: it lives in the karabiner.json
+    # that `chezmoi apply` installs, so on a fresh machine it cannot be loaded
+    # yet. verify_karabiner_profile checks it after the apply instead.
   fi
 
   # Note: do NOT go hunting for Karabiner in System Settings > Privacy & Security
@@ -265,6 +264,23 @@ EOF
     echo "        If Caps Lock misbehaves, reset it to 'Caps Lock' and let"
     echo "        Karabiner own the remap. See KEYBINDINGS.md."
   fi
+}
+
+# Run after `chezmoi apply`: Karabiner watches karabiner.json and reloads it on
+# change, so give it a few seconds to pick up our profile. A warning, not a gate
+# — the dotfiles are already applied by now.
+verify_karabiner_profile() {
+  local attempt
+  for attempt in 1 2 3 4 5; do
+    karabiner_profile_loaded && return 0
+    sleep 1
+  done
+  cat <<'EOF'
+
+  WARN: Karabiner has not loaded our "Default" profile — it is still on its
+        built-in one, so Caps Lock is not remapped.
+        Fix: quit and relaunch Karabiner-Elements. If it persists, restart.
+EOF
 }
 
 dry_run_manifest() {
@@ -359,7 +375,7 @@ configure_arch_nordvpn() {
   echo "Enabling NordVPN daemon..."
   sudo systemctl enable --now nordvpnd
 
-  if id -nG "${username}" | tr ' ' '\n' | grep -qx nordvpn; then
+  if id -nG "${username}" | tr ' ' '\n' | grep -x nordvpn >/dev/null; then
     echo "${username} is already in the nordvpn group."
   else
     echo "Adding ${username} to the nordvpn group..."
@@ -425,11 +441,13 @@ print_dry_run_plan() {
   case "${role}" in
     macos)
       echo "  brew bundle --file=${source_dir}/pkg/macos/Brewfile"
+      echo "  brew bundle --file=${source_dir}/pkg/macos/Brewfile.work (work machines only)"
       echo "  npm install -g @devcontainers/cli (when npm is available)"
       echo "  launch Karabiner-Elements and AeroSpace to raise their permission prompts"
       echo "  PREFLIGHT GATE: abort unless the Karabiner driver extension, Input"
       echo "    Monitoring, and AeroSpace Accessibility are all granted"
       echo "  retire any unmanaged ~/.config/ghostty/config"
+      echo "  verify Karabiner loaded the \"Default\" profile (warning only)"
       ;;
     arch)
       dry_run_manifest "shelly install standard --no-confirm" "${source_dir}/pkg/arch/pacman-desktop.txt"
@@ -590,6 +608,10 @@ if [ -d ~/.local/share/chezmoi/.git ]; then
   echo "Updating dotfiles source..."
   chezmoi git -- pull --ff-only || \
     echo "WARN: could not fast-forward the source; using the local copy as-is."
+  # Regenerate the config so new data (and CHEZMOI_WORK) take effect.
+  if [ "${CHEZMOI_ROLE}" = "macos" ]; then
+    chezmoi init
+  fi
 else
   echo "Fetching dotfiles source..."
   chezmoi init "${REPO}"
@@ -599,6 +621,10 @@ fi
 if [ "${CHEZMOI_ROLE}" = "macos" ]; then
   echo "Installing Homebrew packages..."
   brew bundle --file="$(chezmoi source-path)/pkg/macos/Brewfile"
+  if [ "$(chezmoi execute-template '{{ index . "work" }}')" = "true" ]; then
+    echo "Installing work Homebrew packages..."
+    brew bundle --file="$(chezmoi source-path)/pkg/macos/Brewfile.work"
+  fi
   # npm globals (not available via brew)
   if command -v npm >/dev/null; then
     echo "Installing npm globals..."
@@ -672,6 +698,10 @@ fi
 
 echo "Applying dotfiles..."
 chezmoi apply
+
+if [ "${CHEZMOI_ROLE}" = "macos" ]; then
+  verify_karabiner_profile
+fi
 
 # The pre-chezmoi Ghostty config. Ghostty reads both `config` and `config.ghostty`
 # and merges them, so a stale unmanaged `config` silently contributes settings

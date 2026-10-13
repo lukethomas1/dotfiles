@@ -31,6 +31,16 @@
 {{- $secretless = or (eq $role "container") (eq $role "debian-dev-headless") -}}
 {{- $headless = eq $role "debian-dev-headless" -}}
 
+{{- /* Work machine flag. CHEZMOI_WORK=1 (or 0) sets it; otherwise the value
+       from the previous init is kept, so it only needs setting once. */ -}}
+{{- $work := false -}}
+{{- if hasKey . "work" -}}
+{{-   $work = .work -}}
+{{- end -}}
+{{- if env "CHEZMOI_WORK" -}}
+{{-   $work = eq (env "CHEZMOI_WORK") "1" -}}
+{{- end -}}
+
 encryption = "age"
 
 [age]
@@ -42,3 +52,4 @@ encryption = "age"
   distro = {{ $distro | quote }}
   secretless = {{ $secretless }}
   headless = {{ $headless }}
+  work = {{ $work }}

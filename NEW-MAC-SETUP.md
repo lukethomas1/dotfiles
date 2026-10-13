@@ -34,6 +34,14 @@ Run bootstrap:
 curl -sSL https://raw.githubusercontent.com/lukethomas1/dotfiles/main/bootstrap.sh | bash
 ```
 
+On a **work** Mac, set the work flag instead (it is remembered, so later runs
+don't need it):
+```bash
+curl -sSL https://raw.githubusercontent.com/lukethomas1/dotfiles/main/bootstrap.sh | CHEZMOI_WORK=1 bash
+```
+This adds `pkg/macos/Brewfile.work` and keeps GPG commit signing (personal Macs
+sign with `~/.ssh/id_ed25519.pub`).
+
 Expect 3 prompts:
 1. Press enter for Homebrew install
 2. Type sudo password (may ask twice)
