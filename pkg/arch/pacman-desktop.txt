@@ -37,6 +37,8 @@ noctalia
 # Intentional desktop exception: RGB lighting control for CachyOS Niri/Noctalia.
 openrgb
 openssh
+# Intentional host exception: Podman container support.
+podman
 ripgrep
 shelly
 starship
