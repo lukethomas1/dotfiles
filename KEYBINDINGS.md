@@ -145,10 +145,11 @@ mapped to Mission Control as an approximation.
 not a scrollable column strip. `Mod+C` (center column), `Mod+Ctrl+F` (expand
 column), and `Mod+Home`/`Mod+End` (first/last column) are Arch-only.
 
-**OpenWhispr uses an Arch-only `Ctrl+Space` binding.** Niri invokes OpenWhispr's
+**OpenWhispr uses Arch-only `F16` and `Ctrl+Space` bindings.** Niri invokes the
+managed `openwhispr-toggle` helper, which calls OpenWhispr's
 `com.openwhispr.App.Toggle` D-Bus method. Start OpenWhispr through the managed
-`openwhispr-niri` launcher so it exports that method and uses the Wayland `wtype`
-paste path; this avoids granting raw input-device access.
+`openwhispr-niri` launcher so it exports that method and uses the Wayland
+`wtype` paste path; this avoids granting raw input-device access.
 
 **Ghostty's `ctrl+h` / `ctrl+w` / `ctrl+l` split bindings are removed on both
 hosts.** They drove Ghostty's own splits, which herdr replaced, while costing

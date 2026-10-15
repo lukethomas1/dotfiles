@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+exec dbus-send --session --type=method_call \
+  --dest=com.openwhispr.App /com/openwhispr/App com.openwhispr.App.Toggle

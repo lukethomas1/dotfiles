@@ -12,7 +12,8 @@ binds {
     // ─── Applications ───
     Mod+Return                          hotkey-overlay-title="Open Terminal: Ghostty" { spawn "ghostty"; }
     Mod+Space                           hotkey-overlay-title="Open App Launcher: noctalia launcher" { spawn-sh "noctalia msg panel-toggle launcher"; }
-    Ctrl+Space                          allow-inhibiting=false hotkey-overlay-title="Toggle OpenWhispr Dictation" { spawn-sh "dbus-send --session --type=method_call --dest=com.openwhispr.App /com/openwhispr/App com.openwhispr.App.Toggle"; }
+    F16                                 hotkey-overlay-title="Toggle OpenWhispr Dictation" { spawn "~/.local/bin/openwhispr-toggle"; }
+    Ctrl+Space                          hotkey-overlay-title="Toggle OpenWhispr Dictation" { spawn "~/.local/bin/openwhispr-toggle"; }
     Mod+B                               hotkey-overlay-title="Open Browser: firefox" { spawn "firefox"; }
     Mod+ALT+L                           hotkey-overlay-title="Lock Screen: noctalia lock" { spawn-sh "noctalia msg session lock"; }
     Mod+Shift+Q                        hotkey-overlay-title="Session Menu: noctalia sessionMenu" { spawn-sh "noctalia msg panel-toggle session"; }

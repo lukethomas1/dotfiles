@@ -18,10 +18,11 @@ The launcher, paste shim, desktop entry, and Niri rules are managed by Chezmoi.
 | Chezmoi source | Purpose |
 | --- | --- |
 | `private_dot_local/private_bin/executable_openwhispr-niri` | Launches the AppImage with scoped environment compatibility settings and native Wayland. |
+| `private_dot_local/private_bin/executable_openwhispr-toggle` | Toggles dictation from the Niri keybinding. |
 | `private_dot_local/private_libexec/openwhispr-niri/executable_wtype` | Selects a paste key based on the focused Niri app ID, then invokes system `wtype`. |
 | `private_dot_local/private_share/applications/openwhispr.desktop.tmpl` | Adds OpenWhispr to the desktop application list and Noctalia launcher. |
 | `dot_config/niri/cfg/autostart.kdl` | Starts OpenWhispr through the managed launcher on Niri startup. |
-| `dot_config/niri/cfg/keybinds.kdl` | Binds `Ctrl+Space` to OpenWhispr's D-Bus toggle method. |
+| `dot_config/niri/cfg/keybinds.kdl` | Binds F16 and Ctrl+Space to the managed OpenWhispr toggle helper. |
 | `dot_config/niri/cfg/rules.kdl` | Keeps the recording floater floating, unfocused, borderless, and positioned bottom-left. |
 | `.chezmoiignore.tmpl` | Keeps this runbook out of the deployed home directory and scopes the integration to Arch. |
 
@@ -34,9 +35,9 @@ The launcher, paste shim, desktop entry, and Niri rules are managed by Chezmoi.
   `~/.local/bin/openwhispr-niri`.
 - Niri autostart invokes the same launcher. To start it manually, run
   `~/.local/bin/openwhispr-niri`.
-- `Ctrl+Space` calls `com.openwhispr.App.Toggle` over the session D-Bus. This
-  starts or stops dictation without relying on OpenWhispr's raw Linux keyboard
-  listener.
+- F16 and Ctrl+Space run `~/.local/bin/openwhispr-toggle`, which calls
+  `com.openwhispr.App.Toggle` over the session D-Bus. This starts or stops
+  dictation without relying on OpenWhispr's raw Linux keyboard listener.
 - The launcher sets `XDG_CURRENT_DESKTOP=GNOME` for the OpenWhispr process so
   version 1.10.2 initializes the D-Bus toggle service. It exports a synthetic
   `SWAYSOCK` path to select OpenWhispr's wlroots/`wtype` paste path, and prepends
@@ -94,7 +95,7 @@ pursued.
 
 ### Confirmed
 
-- `Ctrl+Space` starts and stops dictation while OpenWhispr is not focused.
+- F16 and Ctrl+Space start and stop dictation while OpenWhispr is not focused.
 - OpenWhispr's local Orukeet model and Qwen3.5 9B Vulkan assistant model both
   initialized successfully.
 - A direct `wl-copy` clipboard check pasted into the Firefox ChatGPT field and
