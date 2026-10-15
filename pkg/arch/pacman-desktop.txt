@@ -22,6 +22,8 @@ github-cli
 git
 gnupg
 ghostty
+# Intentional host exception: Go toolchain for Neovim's gopls and formatters.
+go
 # Intentional host exception: remote homelab management. `incus` provides the
 # client and also packages a local daemon, which remains inactive unless
 # explicitly initialized or enabled.

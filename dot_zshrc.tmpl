@@ -80,9 +80,13 @@ antidote_release_lock() {
 }
 
 antidote_acquire_lock() {
-  local attempts=0 owner_pid="" published_pid=""
-  while ! mkdir "$ANTIDOTE_LOCK" 2>/dev/null; do
+  local attempts=0 owner_pid="" published_pid="" lock_error=""
+  while ! lock_error="$(command mkdir -- "$ANTIDOTE_LOCK" 2>&1)"; do
     owner_pid=""
+    if [[ ! -e "$ANTIDOTE_LOCK" && ! -L "$ANTIDOTE_LOCK" ]]; then
+      print -u2 "WARN: cannot create Antidote reconciliation lock: $lock_error"
+      return 1
+    fi
     if [[ -L "$ANTIDOTE_LOCK" || ! -d "$ANTIDOTE_LOCK" ]]; then
       print -u2 "WARN: Antidote reconciliation lock is unsafe; continuing without plugins."
       return 1
