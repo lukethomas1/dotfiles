@@ -1,7 +1,7 @@
 // ────────────── Startup Applications ──────────────
 // https://github.com/YaLTeR/niri/wiki/Configuration:-Miscellaneous#spawn-sh-at-startup
 
-spawn-sh-at-startup "qs -c noctalia-shell"
+spawn-at-startup "noctalia"
 
 // OpenWhispr exposes its native D-Bus toggle in GNOME mode; the wrapper enables
 // that endpoint and OpenWhispr's wtype paste path for this Niri session.

@@ -1,0 +1,5 @@
+gates:
+  - acceptance.md
+  - beads.md
+  - specs/*/spec.md
+  - specs/*/test-plan.md

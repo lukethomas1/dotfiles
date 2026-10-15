@@ -1,0 +1,11 @@
+version: 1
+kitVersion: 0.1.0
+adapter: codex
+beads:
+  mode: local
+validation:
+  commands:
+    - bash -n bootstrap.sh
+    - git diff --check
+    - openspec validate --all --strict
+    - python3 scripts/validate-agentic-workflow.py

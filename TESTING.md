@@ -176,3 +176,23 @@ and are neither managed by Chezmoi nor copied to retained storage.
 macOS and CachyOS are both required: initialized role data controls
 platform-specific ignores, while Shelly and the Niri validation are
 Arch/CachyOS-specific.
+
+## Native Noctalia desktop
+
+On the Arch host with native Noctalia and Niri available, run:
+
+```bash
+python3 scripts/test-desktop-shell.py
+python3 scripts/validate-agentic-workflow.py
+```
+
+The desktop harness renders all five profiles and applies them twice into
+temporary homes, excluding encrypted entries and scripts. It checks role
+boundaries, archive exclusions, native config validity and effective
+preferences, Niri validation, startup, and IPC command vocabulary. It never
+starts a desktop or invokes lock, volume, power, or package operations.
+
+The workflow adapter invokes the installed kit validator on active change
+metadata in a temporary directory. Kit 0.1.0 otherwise treats the existing
+`openspec/changes/archive/` container as an active change. Existing specs and
+OpenSpec configuration are preserved.

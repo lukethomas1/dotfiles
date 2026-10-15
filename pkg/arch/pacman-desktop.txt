@@ -33,8 +33,7 @@ libappindicator-gtk3
 neovim
 ninja
 niri
-noctalia-qs
-noctalia-shell
+noctalia
 # Intentional desktop exception: RGB lighting control for CachyOS Niri/Noctalia.
 openrgb
 openssh

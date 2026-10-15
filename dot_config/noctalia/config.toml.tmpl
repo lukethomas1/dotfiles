@@ -1,0 +1,239 @@
+[accessibility]
+ui_scale = 1.0
+
+[shell]
+font_family = "Adwaita Sans"
+telemetry_enabled = false
+setup_wizard_enabled = false
+polkit_agent = true
+clipboard_enabled = false
+clipboard_auto_paste = "off"
+avatar_path = {{ printf "%s/.face" .chezmoi.homeDir | quote }}
+
+[shell.launcher]
+categories = true
+app_grid = false
+sort_by_usage = true
+auto_paste = "off"
+
+[shell.panel]
+launcher_placement = "floating"
+launcher_position = "center"
+session_placement = "floating"
+session_position = "center"
+open_near_click_control_center = true
+
+[shell.session]
+grid = false
+show_shortcuts = true
+
+[[shell.session.actions]]
+action = "lock"
+shortcut = "1"
+countdown_seconds = 0
+
+[[shell.session.actions]]
+action = "suspend"
+shortcut = "2"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "command"
+shortcut = "3"
+countdown_seconds = 10
+label = "Hibernate"
+command = "systemctl hibernate"
+
+[[shell.session.actions]]
+action = "reboot"
+shortcut = "4"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "logout"
+shortcut = "5"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "shutdown"
+shortcut = "6"
+countdown_seconds = 10
+
+[[shell.session.actions]]
+action = "command"
+shortcut = "7"
+countdown_seconds = 10
+label = "Reboot to UEFI"
+command = "systemctl reboot --firmware-setup"
+
+[theme]
+mode = "dark"
+source = "builtin"
+builtin = "Catppuccin"
+
+[theme.templates]
+builtin_ids = []
+community_ids = []
+
+[audio]
+enable_sounds = true
+enable_overdrive = false
+
+[wallpaper]
+enabled = true
+directory = {{ printf "%s/Pictures/Wallpapers" .chezmoi.homeDir | quote }}
+fill_mode = "crop"
+fill_color = "#000000"
+transition_duration = 1500
+edge_smoothness = 0.05
+
+[wallpaper.default]
+path = {{ printf "%s/Pictures/Wallpapers/i2gb4m7j7cb41.png" .chezmoi.homeDir | quote }}
+
+[wallpaper.automation]
+enabled = false
+recursive = false
+
+[backdrop]
+enabled = false
+
+[bar.default]
+position = "top"
+auto_hide = false
+background_opacity = 0.93
+margin_edge = 4
+margin_ends = 4
+padding = 2
+widget_spacing = 6
+radius = 12
+reserve_space = true
+start = ["launcher", "clock", "cpu", "temp", "ram", "disk", "network_rx", "network_tx", "active_window", "media", "audio-vis"]
+center = ["workspaces"]
+end = ["tray", "notifications", "battery", "volume", "brightness", "control-center"]
+
+[widget.launcher]
+glyph = "rocket"
+
+[widget.clock]
+format = "{:%H:%M %a, %b %d}"
+
+[widget.workspaces]
+style = "regular"
+label_source = "name"
+show_labels = true
+labels_only_when_occupied = false
+max_label_chars = 2
+pill_scale = 1.0
+active_pill_size = 1.0
+inactive_pill_size = 1.0
+hide_when_empty = false
+show_icons = false
+focused_color = "primary"
+occupied_color = "secondary"
+empty_color = "secondary"
+focused_output_only = false
+
+[widget.workspaces.actions]
+scroll_up = "none"
+scroll_down = "none"
+scroll_left = "none"
+scroll_right = "none"
+
+[widget.active_window]
+max_length = 145
+min_length = 0
+title_scroll = "on_hover"
+display = "icon_and_text"
+
+[widget.media]
+artist_first = true
+max_length = 145
+min_length = 0
+title_scroll = "on_hover"
+hide_when_no_media = false
+
+[widget.audio-vis]
+type = "audio_visualizer"
+width = 56
+mirrored = true
+
+[widget.tray]
+drawer = false
+hide_passive = false
+
+[widget.volume.actions]
+middle = "exec pwvucontrol || pavucontrol"
+
+[dock]
+enabled = true
+auto_hide = true
+position = "bottom"
+active_monitor_only = true
+background_opacity = 1.0
+launcher_position = "none"
+show_dots = false
+
+[notification]
+position = "top_right"
+layer = "overlay"
+background_opacity = 1.0
+keep_dismissed_in_history = false
+
+[osd]
+position = "top_right"
+hide_delay_ms = 2000
+background_opacity = 1.0
+
+[lockscreen]
+transition_duration = 0
+blur_intensity = 0.0
+tint_intensity = 0.0
+
+[widget.cpu]
+type = "sysmon"
+stat = "cpu_usage"
+visualization = "none"
+show_value = true
+font_family = "monospace"
+capsule_padding = 6
+
+[widget.temp]
+type = "sysmon"
+stat = "cpu_temp"
+visualization = "none"
+show_value = true
+font_family = "monospace"
+capsule_padding = 6
+
+[widget.ram]
+type = "sysmon"
+stat = "ram_pct"
+visualization = "none"
+show_value = true
+font_family = "monospace"
+capsule_padding = 6
+
+[widget.disk]
+type = "sysmon"
+stat = "disk_used_pct"
+visualization = "none"
+show_value = true
+font_family = "monospace"
+capsule_padding = 6
+path = "/"
+
+[widget.network_rx]
+type = "sysmon"
+stat = "net_rx"
+visualization = "none"
+show_value = true
+font_family = "monospace"
+capsule_padding = 6
+
+[widget.network_tx]
+type = "sysmon"
+stat = "net_tx"
+visualization = "none"
+show_value = true
+font_family = "monospace"
+capsule_padding = 6
